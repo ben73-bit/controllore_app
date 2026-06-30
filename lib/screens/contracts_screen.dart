@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/contract.dart';
 import '../services/supabase_service.dart';
 import 'add_contract_screen.dart';
+import 'contract_detail_screen.dart';
 
 class ContractsScreen extends StatefulWidget {
   const ContractsScreen({super.key});
@@ -116,20 +117,30 @@ class _ContractsScreenState extends State<ContractsScreen> {
       progress = (billed / contract.totalHoursLimit!).clamp(0.0, 1.0);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ContractDetailScreen(contract: contract),
           ),
-        ],
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.05)),
-      ),
+        ).then((_) => _loadContracts());
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.05)),
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -243,7 +254,8 @@ class _ContractsScreenState extends State<ContractsScreen> {
           ],
         ],
       ),
-    );
+    ), // chiude Container
+    ); // chiude InkWell
   }
 
   Widget _buildDetailItem(
