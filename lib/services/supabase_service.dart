@@ -17,6 +17,17 @@ class SupabaseService {
     return Contract.fromJson(response);
   }
 
+  Future<void> updateContract(Contract contract) async {
+    await _client
+        .from('contracts')
+        .update(contract.toJson())
+        .eq('id', contract.id!);
+  }
+
+  Future<void> deleteContract(String contractId) async {
+    await _client.from('contracts').delete().eq('id', contractId);
+  }
+
   // --- Lezioni ---
 
   Future<List<Lesson>> getRecentLessons({int limit = 5}) async {

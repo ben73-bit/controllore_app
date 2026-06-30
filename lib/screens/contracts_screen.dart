@@ -41,6 +41,67 @@ class _ContractsScreenState extends State<ContractsScreen> {
     }
   }
 
+  Future<bool?> _confirmDelete(Contract contract) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 40),
+        title: const Text('Elimina Contratto'),
+        content: RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: Theme.of(context).textTheme.bodyMedium,
+            children: [
+              const TextSpan(text: 'Sei sicuro di voler eliminare il contratto con '),
+              TextSpan(
+                text: contract.companyName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const TextSpan(
+                text: '?\n\nTutte le lezioni associate verranno eliminate.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteContract(Contract contract) async {
+    try {
+      await _supabaseService.deleteContract(contract.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Contratto "${contract.companyName}" eliminato.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore eliminazione: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _loadContracts(); // ricarica per ripristinare la card
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -61,10 +122,33 @@ class _ContractsScreenState extends State<ContractsScreen> {
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 16),
                 itemBuilder: (context, index) {
-                  return _buildContractCard(
-                    _contracts[index],
-                    textTheme,
-                    colorScheme,
+                  final contract = _contracts[index];
+                  return Dismissible(
+                    key: Key(contract.id ?? index.toString()),
+                    direction: DismissDirection.endToStart,
+                    confirmDismiss: (_) => _confirmDelete(contract),
+                    onDismissed: (_) => _deleteContract(contract),
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete_outline, color: Colors.white, size: 28),
+                          SizedBox(height: 4),
+                          Text('Elimina', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    child: _buildContractCard(
+                      contract,
+                      textTheme,
+                      colorScheme,
+                    ),
                   );
                 },
               ),
@@ -144,7 +228,7 @@ class _ContractsScreenState extends State<ContractsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Card: Azienda e Status
+          // Header Card: Azienda, Status e pulsante Modifica
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -158,20 +242,38 @@ class _ContractsScreenState extends State<ContractsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Attivo', // Potremmo calcolarlo in base a endDate
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+              // Pulsante Modifica
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddContractScreen(contract: contract),
+                    ),
+                  ).then((updated) {
+                    if (updated == true) _loadContracts();
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_outlined, size: 14, color: colorScheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Modifica',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

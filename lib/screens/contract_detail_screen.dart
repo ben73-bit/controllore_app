@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
+import 'add_contract_screen.dart';
 
 class ContractDetailScreen extends StatefulWidget {
   final Contract contract;
@@ -89,6 +90,22 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
               pinned: true,
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Modifica contratto',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddContractScreen(contract: contract),
+                      ),
+                    ).then((updated) {
+                      if (updated == true) _loadLessons();
+                    });
+                  },
+                ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
                   decoration: BoxDecoration(

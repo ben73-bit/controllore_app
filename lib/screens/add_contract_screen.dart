@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/contract.dart';
 import '../services/supabase_service.dart';
 
 class AddContractScreen extends StatefulWidget {
-  const AddContractScreen({super.key});
+  /// Se [contract] è fornito, la schermata è in modalità MODIFICA.
+  /// Se [contract] è null, la schermata è in modalità CREA.
+  final Contract? contract;
+
+  const AddContractScreen({super.key, this.contract});
 
   @override
   State<AddContractScreen> createState() => _AddContractScreenState();
@@ -15,12 +20,38 @@ class _AddContractScreenState extends State<AddContractScreen> {
   final _contractNumberController = TextEditingController();
   final _rateController = TextEditingController();
   final _limitController = TextEditingController();
-  
+
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
   bool _isLoading = false;
 
+  bool get _isEditing => widget.contract != null;
+
   final SupabaseService _supabaseService = SupabaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-popola i campi se siamo in modalità modifica
+    if (_isEditing) {
+      final c = widget.contract!;
+      _companyController.text = c.companyName;
+      _contractNumberController.text = c.contractNumber ?? '';
+      _rateController.text = c.hourlyRate.toString();
+      _limitController.text = c.totalHoursLimit?.toString() ?? '';
+      _startDate = c.startDate;
+      _endDate = c.endDate;
+    }
+  }
+
+  @override
+  void dispose() {
+    _companyController.dispose();
+    _contractNumberController.dispose();
+    _rateController.dispose();
+    _limitController.dispose();
+    super.dispose();
+  }
 
   Future<void> _selectDate(BuildContext context, bool isStart) async {
     final picked = await showDatePicker(
@@ -40,32 +71,41 @@ class _AddContractScreenState extends State<AddContractScreen> {
     }
   }
 
-  Future<void> _saveContract() async {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
 
     try {
       final contract = Contract(
-        id: null,
-        companyName: _companyController.text,
-        contractNumber: _contractNumberController.text.isNotEmpty ? _contractNumberController.text : null,
-        hourlyRate: double.parse(_rateController.text),
-        totalHoursLimit: _limitController.text.isNotEmpty ? double.parse(_limitController.text) : null,
-        billedHours: 0.0,
+        id: _isEditing ? widget.contract!.id : null,
+        companyName: _companyController.text.trim(),
+        contractNumber: _contractNumberController.text.isNotEmpty
+            ? _contractNumberController.text.trim()
+            : null,
+        hourlyRate: double.parse(_rateController.text.replaceAll(',', '.')),
+        totalHoursLimit: _limitController.text.isNotEmpty
+            ? double.parse(_limitController.text.replaceAll(',', '.'))
+            : null,
+        billedHours: _isEditing ? widget.contract!.billedHours : 0.0,
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      await _supabaseService.insertContract(contract);
-
-      if (mounted) {
-        Navigator.pop(context, true); // Ritorna true per segnalare che è stato aggiunto
+      if (_isEditing) {
+        await _supabaseService.updateContract(contract);
+      } else {
+        await _supabaseService.insertContract(contract);
       }
+
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore salvataggio: $e')),
+          SnackBar(
+            content: Text('Errore: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -74,119 +114,172 @@ class _AddContractScreenState extends State<AddContractScreen> {
   }
 
   @override
-  void dispose() {
-    _companyController.dispose();
-    _contractNumberController.dispose();
-    _rateController.dispose();
-    _limitController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final dateFormat = DateFormat('dd/MM/yyyy', 'it_IT');
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuovo Contratto')),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: _companyController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome Azienda / Cliente',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Modifica Contratto' : 'Nuovo Contratto'),
+        // In modalità modifica mostriamo un'icona di salvataggio anche in alto
+        actions: _isEditing
+            ? [
+                TextButton.icon(
+                  onPressed: _isLoading ? null : _save,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Salva'),
+                ),
+              ]
+            : null,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ---- Sezione: Dati Azienda ----
+                    _sectionLabel(context, 'Dati Azienda / Cliente'),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _companyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome Azienda / Cliente',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.business),
+                      ),
+                      validator: (val) =>
+                          val == null || val.isEmpty ? 'Campo obbligatorio' : null,
                     ),
-                    validator: (val) => val == null || val.isEmpty ? 'Campo obbligatorio' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _contractNumberController,
-                    decoration: const InputDecoration(
-                      labelText: 'Numero Contratto / Riferimento (Opzionale)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.numbers),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _contractNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Numero Contratto / Riferimento (Opzionale)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.numbers),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _rateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tariffa Oraria (€)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.euro),
+
+                    const SizedBox(height: 28),
+
+                    // ---- Sezione: Tariffe e Ore ----
+                    _sectionLabel(context, 'Tariffe e Ore'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rateController,
+                            decoration: const InputDecoration(
+                              labelText: 'Tariffa Oraria (€)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.euro),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (val) {
+                              if (val == null || val.isEmpty) return 'Obbligatorio';
+                              if (double.tryParse(val.replaceAll(',', '.')) == null) {
+                                return 'Numero non valido';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _limitController,
+                            decoration: const InputDecoration(
+                              labelText: 'Monte Ore (Opz.)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.timer),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: (val) {
+                              if (val != null &&
+                                  val.isNotEmpty &&
+                                  double.tryParse(val.replaceAll(',', '.')) == null) {
+                                return 'Numero non valido';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Campo obbligatorio';
-                      if (double.tryParse(val) == null) return 'Inserire un numero valido';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _limitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Monte Ore Totale (Opzionale)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.timer),
+
+                    const SizedBox(height: 28),
+
+                    // ---- Sezione: Date ----
+                    _sectionLabel(context, 'Periodo di Validità'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _selectDate(context, true),
+                            icon: const Icon(Icons.calendar_today, size: 18),
+                            label: Text('Inizio: ${dateFormat.format(_startDate)}'),
+                          ),
+                        ),
+                      ],
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (val) {
-                      if (val != null && val.isNotEmpty && double.tryParse(val) == null) {
-                        return 'Inserire un numero valido';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _selectDate(context, true),
-                          icon: const Icon(Icons.calendar_today),
-                          label: Text('Inizio: ${_startDate.day}/${_startDate.month}/${_startDate.year}'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _selectDate(context, false),
+                            icon: const Icon(Icons.calendar_month, size: 18),
+                            label: Text(_endDate == null
+                                ? 'Imposta Scadenza (Opz.)'
+                                : 'Fine: ${dateFormat.format(_endDate!)}'),
+                          ),
+                        ),
+                        if (_endDate != null)
+                          IconButton(
+                            icon: Icon(Icons.clear,
+                                color: colorScheme.error),
+                            tooltip: 'Rimuovi data fine',
+                            onPressed: () => setState(() => _endDate = null),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // ---- Pulsante Salva ----
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: FilledButton.icon(
+                        onPressed: _isLoading ? null : _save,
+                        icon: Icon(_isEditing ? Icons.save : Icons.add),
+                        label: Text(
+                          _isEditing ? 'SALVA MODIFICHE' : 'CREA CONTRATTO',
+                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _selectDate(context, false),
-                          icon: const Icon(Icons.calendar_month),
-                          label: Text(_endDate == null 
-                            ? 'Imposta Scadenza' 
-                            : 'Fine: ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'),
-                        ),
-                      ),
-                      if (_endDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () => setState(() => _endDate = null),
-                        )
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton(
-                      onPressed: _saveContract,
-                      child: const Text('SALVA CONTRATTO', style: TextStyle(fontSize: 16)),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
+    );
+  }
+
+  Widget _sectionLabel(BuildContext context, String label) {
+    return Text(
+      label.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
           ),
     );
   }
