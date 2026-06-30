@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
@@ -27,9 +27,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   bool _isLoadingData = true;
   bool _isSaving = false;
   List<Contract> _contracts = [];
+  String? _lastError; // mostrato permanentemente a schermo
 
   final SupabaseService _supabaseService = SupabaseService();
-  final _uuid = const Uuid();
 
   @override
   void initState() {
@@ -47,11 +47,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         }
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore caricamento contratti: $e')),
-        );
-      }
+      if (mounted) setState(() => _lastError = 'Errore caricamento contratti: $e');
     } finally {
       if (mounted) setState(() => _isLoadingData = false);
     }
@@ -80,48 +76,53 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   }
 
   Future<void> _saveLesson() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _lastError = null); // Reset errore precedente
+
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedContract == null) return;
-    
+    if (_selectedContract == null) {
+      setState(() => _lastError = 'Seleziona un contratto.');
+      return;
+    }
+
+    final h = int.tryParse(_hoursController.text) ?? 0;
+    final m = int.tryParse(_minutesController.text) ?? 0;
+    if (h == 0 && m == 0) {
+      setState(() => _lastError = 'Inserisci una durata valida (almeno 1 minuto).');
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
       final finalDateTime = DateTime(
         _startDate.year, _startDate.month, _startDate.day,
-        _startTime.hour, _startTime.minute
+        _startTime.hour, _startTime.minute,
       );
-
-      final h = int.parse(_hoursController.text);
-      final m = int.parse(_minutesController.text);
       final durationStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
-
-      // Calcolo importo automatico
       final totalHoursDecimal = h + (m / 60.0);
       final calculatedAmount = totalHoursDecimal * _selectedContract!.hourlyRate;
 
       final lesson = Lesson(
-        id: _uuid.v4(), // Generiamo ID client-side
+        id: 'LESSON-${DateTime.now().millisecondsSinceEpoch}',
         contractId: _selectedContract!.id!,
         startDateTime: finalDateTime,
         duration: durationStr,
         isConfirmed: true,
-        summary: _summaryController.text,
-        description: _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
+        summary: _summaryController.text.trim(),
+        description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
         amount: calculatedAmount,
         isBilled: false,
       );
 
-      await _supabaseService.insertLesson(lesson);
+      // Inserimento semplice senza .select().single() per evitare errori di parsing
+      await Supabase.instance.client
+          .from('lessons')
+          .insert(lesson.toJson());
 
-      if (mounted) {
-        Navigator.pop(context, true); 
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore salvataggio: $e')),
-        );
-      }
+      if (mounted) setState(() => _lastError = 'Errore salvataggio:\n${e.toString()}');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -168,6 +169,31 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Banner errore permanente a schermo
+            if (_lastError != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  border: Border.all(color: Colors.red.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _lastError!,
+                        style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             DropdownButtonFormField<Contract>(
               decoration: const InputDecoration(
                 labelText: 'Seleziona Contratto',

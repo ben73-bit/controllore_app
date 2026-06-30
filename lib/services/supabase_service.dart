@@ -20,12 +20,12 @@ class SupabaseService {
   // --- Lezioni ---
 
   Future<List<Lesson>> getRecentLessons({int limit = 5}) async {
-    final response = await _client.from('lessons').select().order('lesson_date', ascending: false).limit(limit);
+    final response = await _client.from('lessons').select().order('start_date_time', ascending: false).limit(limit);
     return (response as List).map((json) => Lesson.fromJson(json)).toList();
   }
   
   Future<List<Lesson>> getLessonsForContract(String contractId) async {
-    final response = await _client.from('lessons').select().eq('contract_id', contractId).order('lesson_date', ascending: false);
+    final response = await _client.from('lessons').select().eq('contract_id', contractId).order('start_date_time', ascending: false);
     return (response as List).map((json) => Lesson.fromJson(json)).toList();
   }
 
