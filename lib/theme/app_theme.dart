@@ -29,16 +29,25 @@ class AppTheme {
         onSurface: textPrimary,
       ),
       textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.outfit(color: textPrimary, fontWeight: FontWeight.bold),
-        displayMedium: GoogleFonts.outfit(color: textPrimary, fontWeight: FontWeight.w600),
-        titleLarge: GoogleFonts.outfit(color: textPrimary, fontWeight: FontWeight.w600),
+        displayLarge: GoogleFonts.outfit(
+          color: textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: GoogleFonts.outfit(
+          color: textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: GoogleFonts.outfit(
+          color: textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
         bodyLarge: const TextStyle(color: textPrimary),
         bodyMedium: const TextStyle(color: textSecondary),
       ),
       cardTheme: CardThemeData(
         color: surfaceColor,
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.05),
+        shadowColor: Colors.black.withValues(alpha: 0.05),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       appBarTheme: AppBarTheme(
@@ -68,17 +77,27 @@ class AppTheme {
         onPrimary: Colors.white,
         onSurface: darkTextPrimary,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.outfit(color: darkTextPrimary, fontWeight: FontWeight.bold),
-        displayMedium: GoogleFonts.outfit(color: darkTextPrimary, fontWeight: FontWeight.w600),
-        titleLarge: GoogleFonts.outfit(color: darkTextPrimary, fontWeight: FontWeight.w600),
-        bodyLarge: const TextStyle(color: darkTextPrimary),
-        bodyMedium: const TextStyle(color: darkTextSecondary),
-      ),
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+          .copyWith(
+            displayLarge: GoogleFonts.outfit(
+              color: darkTextPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+            displayMedium: GoogleFonts.outfit(
+              color: darkTextPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+            titleLarge: GoogleFonts.outfit(
+              color: darkTextPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+            bodyLarge: const TextStyle(color: darkTextPrimary),
+            bodyMedium: const TextStyle(color: darkTextSecondary),
+          ),
       cardTheme: CardThemeData(
         color: darkSurfaceColor,
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.2),
+        shadowColor: Colors.black.withValues(alpha: 0.2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       appBarTheme: AppBarTheme(

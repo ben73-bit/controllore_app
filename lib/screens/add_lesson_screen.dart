@@ -1,0 +1,261 @@
+import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+import '../models/contract.dart';
+import '../models/lesson.dart';
+import '../services/supabase_service.dart';
+
+class AddLessonScreen extends StatefulWidget {
+  const AddLessonScreen({super.key});
+
+  @override
+  State<AddLessonScreen> createState() => _AddLessonScreenState();
+}
+
+class _AddLessonScreenState extends State<AddLessonScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _summaryController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  
+  // Durata in ore e minuti separati per semplicità
+  final _hoursController = TextEditingController(text: '1');
+  final _minutesController = TextEditingController(text: '0');
+
+  DateTime _startDate = DateTime.now();
+  TimeOfDay _startTime = TimeOfDay.now();
+  Contract? _selectedContract;
+  
+  bool _isLoadingData = true;
+  bool _isSaving = false;
+  List<Contract> _contracts = [];
+
+  final SupabaseService _supabaseService = SupabaseService();
+  final _uuid = const Uuid();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContracts();
+  }
+
+  Future<void> _loadContracts() async {
+    try {
+      final contracts = await _supabaseService.getContracts();
+      setState(() {
+        _contracts = contracts;
+        if (_contracts.isNotEmpty) {
+          _selectedContract = _contracts.first;
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore caricamento contratti: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingData = false);
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null) {
+      setState(() => _startDate = picked);
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _startTime,
+    );
+    if (picked != null) {
+      setState(() => _startTime = picked);
+    }
+  }
+
+  Future<void> _saveLesson() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedContract == null) return;
+    
+    setState(() => _isSaving = true);
+
+    try {
+      final finalDateTime = DateTime(
+        _startDate.year, _startDate.month, _startDate.day,
+        _startTime.hour, _startTime.minute
+      );
+
+      final h = int.parse(_hoursController.text);
+      final m = int.parse(_minutesController.text);
+      final durationStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
+
+      // Calcolo importo automatico
+      final totalHoursDecimal = h + (m / 60.0);
+      final calculatedAmount = totalHoursDecimal * _selectedContract!.hourlyRate;
+
+      final lesson = Lesson(
+        id: _uuid.v4(), // Generiamo ID client-side
+        contractId: _selectedContract!.id!,
+        startDateTime: finalDateTime,
+        duration: durationStr,
+        isConfirmed: true,
+        summary: _summaryController.text,
+        description: _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
+        amount: calculatedAmount,
+        isBilled: false,
+      );
+
+      await _supabaseService.insertLesson(lesson);
+
+      if (mounted) {
+        Navigator.pop(context, true); 
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore salvataggio: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Nuova Lezione')),
+      body: _isLoadingData 
+        ? const Center(child: CircularProgressIndicator())
+        : _contracts.isEmpty 
+          ? _buildNoContracts(context)
+          : _buildForm(context),
+    );
+  }
+
+  Widget _buildNoContracts(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.warning, size: 64, color: Colors.orange),
+            const SizedBox(height: 16),
+            const Text('Devi creare almeno un contratto prima di inserire lezioni!', textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Indietro'),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForm(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<Contract>(
+              decoration: const InputDecoration(
+                labelText: 'Seleziona Contratto',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.business),
+              ),
+              value: _selectedContract,
+              items: _contracts.map((c) => DropdownMenuItem(
+                value: c,
+                child: Text(c.companyName),
+              )).toList(),
+              onChanged: (val) => setState(() => _selectedContract = val),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _summaryController,
+              decoration: const InputDecoration(
+                labelText: 'Oggetto (es. Docenza Base)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.title),
+              ),
+              validator: (val) => val == null || val.isEmpty ? 'Campo obbligatorio' : null,
+            ),
+            const SizedBox(height: 16),
+            
+            // Row per la Durata
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _hoursController,
+                    decoration: const InputDecoration(
+                      labelText: 'Ore',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.schedule),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (val) => val == null || val.isEmpty ? 'Req' : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    controller: _minutesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Minuti',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (val) => val == null || val.isEmpty ? 'Req' : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _selectDate,
+                    icon: const Icon(Icons.calendar_today),
+                    label: Text('${_startDate.day}/${_startDate.month}/${_startDate.year}'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _selectTime,
+                    icon: const Icon(Icons.access_time),
+                    label: Text(_startTime.format(context)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: FilledButton(
+                onPressed: _isSaving ? null : _saveLesson,
+                child: _isSaving 
+                  ? const CircularProgressIndicator(color: Colors.white) 
+                  : const Text('REGISTRA LEZIONE', style: TextStyle(fontSize: 16)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

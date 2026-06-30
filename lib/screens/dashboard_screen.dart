@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../models/lesson.dart';
 import '../theme/app_theme.dart';
+import 'add_lesson_screen.dart';
+import 'contracts_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,7 +14,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final SupabaseService _supabaseService = SupabaseService();
-  
+
   bool _isLoading = true;
   double _totaleOre = 0.0;
   double _totaleCompensi = 0.0;
@@ -29,7 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final stats = await _supabaseService.getDashboardStats();
       final lessons = await _supabaseService.getRecentLessons(limit: 5);
-      
+
       setState(() {
         _totaleOre = stats['total_hours'];
         _totaleCompensi = stats['total_amount'];
@@ -64,20 +66,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   _buildHeader(textTheme, colorScheme),
                   const SizedBox(height: 32),
-                  _isLoading 
+                  _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _buildSummaryCards(textTheme, colorScheme),
                   const SizedBox(height: 32),
-                  Text(
-                    'Ultime Lezioni',
-                    style: textTheme.titleLarge,
-                  ),
+                  Text('Ultime Lezioni', style: textTheme.titleLarge),
                   const SizedBox(height: 16),
-                  _isLoading 
+                  _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : _recentLessons.isEmpty 
-                          ? const Text('Nessuna lezione trovata.')
-                          : _buildRecentLessonsList(textTheme, colorScheme),
+                      : _recentLessons.isEmpty
+                      ? const Text('Nessuna lezione trovata.')
+                      : _buildRecentLessonsList(textTheme, colorScheme),
                 ],
               ),
             ),
@@ -86,7 +85,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // TODO: Implementare aggiunta lezione
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddLessonScreen()),
+          ).then((added) {
+            if (added == true) {
+              _loadData();
+            }
+          });
         },
         icon: const Icon(Icons.add),
         label: const Text('Nuova Lezione'),
@@ -106,7 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               'Ciao!',
               style: textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.6),
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 4),
@@ -116,10 +122,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: colorScheme.primary.withOpacity(0.1),
-          child: Icon(Icons.person, color: colorScheme.primary),
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.assignment, color: colorScheme.primary),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContractsScreen(),
+                  ),
+                );
+              },
+              tooltip: 'Lista Contratti',
+              style: IconButton.styleFrom(
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                padding: const EdgeInsets.all(12),
+              ),
+            ),
+            const SizedBox(width: 12),
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+              child: Icon(Icons.person, color: colorScheme.primary),
+            ),
+          ],
         ),
       ],
     );
@@ -168,7 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -179,12 +206,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.1),
+                  color: colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  lesson.isBilled ? Icons.check_circle : Icons.class_, 
-                  color: lesson.isBilled ? Colors.green : colorScheme.primary
+                  lesson.isBilled ? Icons.check_circle : Icons.class_,
+                  color: lesson.isBilled ? Colors.green : colorScheme.primary,
                 ),
               ),
               const SizedBox(width: 16),
@@ -192,12 +219,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(lesson.summary ?? 'Lezione', style: textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      lesson.summary ?? 'Lezione',
+                      style: textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       '${lesson.duration} • ${lesson.startDateTime.day}/${lesson.startDateTime.month}/${lesson.startDateTime.year}',
                       style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.6),
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -241,9 +273,9 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withOpacity(0.1)),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +283,7 @@ class _SummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -260,7 +292,7 @@ class _SummaryCard extends StatelessWidget {
           Text(
             title,
             style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withOpacity(0.7),
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 4),
