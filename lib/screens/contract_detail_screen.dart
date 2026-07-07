@@ -58,6 +58,69 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     }
   }
 
+  Future<bool?> _confirmDeleteLesson(Lesson lesson) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 40),
+        title: const Text('Elimina Lezione'),
+        content: Text(
+          'Sei sicuro di voler eliminare\n"${lesson.summary ?? 'Lezione'}"?',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteLesson(Lesson lesson) async {
+    try {
+      await _supabaseService.deleteLesson(lesson.id);
+      if (mounted) {
+        setState(() {
+          _lessons.removeWhere((l) => l.id == lesson.id);
+          // Ricalcola totali
+          _totalHours = 0;
+          _totalAmount = 0;
+          for (final l in _lessons) {
+            final parts = l.duration.split(':');
+            if (parts.length >= 2) {
+              _totalHours += (int.tryParse(parts[0]) ?? 0) +
+                  (int.tryParse(parts[1]) ?? 0) / 60.0;
+            }
+            _totalAmount += l.amount ?? 0;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lezione eliminata.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        _loadLessons();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -226,8 +289,33 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                 sliver: SliverList.separated(
                   itemCount: _lessons.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) =>
-                      _buildLessonTile(_lessons[index], colorScheme, textTheme),
+                  itemBuilder: (context, index) {
+                    final lesson = _lessons[index];
+                    return Dismissible(
+                      key: Key(lesson.id),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (_) => _confirmDeleteLesson(lesson),
+                      onDismissed: (_) => _deleteLesson(lesson),
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade600,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.delete_outline, color: Colors.white, size: 26),
+                            SizedBox(height: 4),
+                            Text('Elimina',
+                                style: TextStyle(color: Colors.white, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      child: _buildLessonTile(lesson, colorScheme, textTheme),
+                    );
+                  },
                 ),
               ),
           ],

@@ -15,7 +15,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   final _formKey = GlobalKey<FormState>();
   final _summaryController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   // Durata in ore e minuti separati per semplicità
   final _hoursController = TextEditingController(text: '1');
   final _minutesController = TextEditingController(text: '0');
@@ -23,7 +23,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   DateTime _startDate = DateTime.now();
   TimeOfDay _startTime = TimeOfDay.now();
   Contract? _selectedContract;
-  
+
   bool _isLoadingData = true;
   bool _isSaving = false;
   List<Contract> _contracts = [];
@@ -47,7 +47,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         }
       });
     } catch (e) {
-      if (mounted) setState(() => _lastError = 'Errore caricamento contratti: $e');
+      if (mounted)
+        setState(() => _lastError = 'Errore caricamento contratti: $e');
     } finally {
       if (mounted) setState(() => _isLoadingData = false);
     }
@@ -88,7 +89,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
     final h = int.tryParse(_hoursController.text) ?? 0;
     final m = int.tryParse(_minutesController.text) ?? 0;
     if (h == 0 && m == 0) {
-      setState(() => _lastError = 'Inserisci una durata valida (almeno 1 minuto).');
+      setState(
+        () => _lastError = 'Inserisci una durata valida (almeno 1 minuto).',
+      );
       return;
     }
 
@@ -96,12 +99,17 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
 
     try {
       final finalDateTime = DateTime(
-        _startDate.year, _startDate.month, _startDate.day,
-        _startTime.hour, _startTime.minute,
+        _startDate.year,
+        _startDate.month,
+        _startDate.day,
+        _startTime.hour,
+        _startTime.minute,
       );
-      final durationStr = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
+      final durationStr =
+          '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
       final totalHoursDecimal = h + (m / 60.0);
-      final calculatedAmount = totalHoursDecimal * _selectedContract!.hourlyRate;
+      final calculatedAmount =
+          totalHoursDecimal * _selectedContract!.hourlyRate;
 
       final lesson = Lesson(
         id: 'LESSON-${DateTime.now().millisecondsSinceEpoch}',
@@ -110,19 +118,20 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         duration: durationStr,
         isConfirmed: true,
         summary: _summaryController.text.trim(),
-        description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
+        description: _descriptionController.text.isNotEmpty
+            ? _descriptionController.text.trim()
+            : null,
         amount: calculatedAmount,
         isBilled: false,
       );
 
       // Inserimento semplice senza .select().single() per evitare errori di parsing
-      await Supabase.instance.client
-          .from('lessons')
-          .insert(lesson.toJson());
+      await Supabase.instance.client.from('lessons').insert(lesson.toJson());
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) setState(() => _lastError = 'Errore salvataggio:\n${e.toString()}');
+      if (mounted)
+        setState(() => _lastError = 'Errore salvataggio:\n${e.toString()}');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -132,9 +141,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Nuova Lezione')),
-      body: _isLoadingData 
-        ? const Center(child: CircularProgressIndicator())
-        : _contracts.isEmpty 
+      body: _isLoadingData
+          ? const Center(child: CircularProgressIndicator())
+          : _contracts.isEmpty
           ? _buildNoContracts(context)
           : _buildForm(context),
     );
@@ -149,12 +158,15 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
           children: [
             const Icon(Icons.warning, size: 64, color: Colors.orange),
             const SizedBox(height: 16),
-            const Text('Devi creare almeno un contratto prima di inserire lezioni!', textAlign: TextAlign.center),
+            const Text(
+              'Devi creare almeno un contratto prima di inserire lezioni!',
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Indietro'),
-            )
+            ),
           ],
         ),
       ),
@@ -183,12 +195,19 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                    Icon(
+                      Icons.error_outline,
+                      color: Colors.red.shade700,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _lastError!,
-                        style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.red.shade800,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -200,11 +219,13 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.business),
               ),
-              value: _selectedContract,
-              items: _contracts.map((c) => DropdownMenuItem(
-                value: c,
-                child: Text(c.companyName),
-              )).toList(),
+              initialValue: _selectedContract,
+              items: _contracts
+                  .map(
+                    (c) =>
+                        DropdownMenuItem(value: c, child: Text(c.companyName)),
+                  )
+                  .toList(),
               onChanged: (val) => setState(() => _selectedContract = val),
             ),
             const SizedBox(height: 16),
@@ -215,10 +236,11 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.title),
               ),
-              validator: (val) => val == null || val.isEmpty ? 'Campo obbligatorio' : null,
+              validator: (val) =>
+                  val == null || val.isEmpty ? 'Campo obbligatorio' : null,
             ),
             const SizedBox(height: 16),
-            
+
             // Row per la Durata
             Row(
               children: [
@@ -231,7 +253,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                       prefixIcon: Icon(Icons.schedule),
                     ),
                     keyboardType: TextInputType.number,
-                    validator: (val) => val == null || val.isEmpty ? 'Req' : null,
+                    validator: (val) =>
+                        val == null || val.isEmpty ? 'Req' : null,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -243,7 +266,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
-                    validator: (val) => val == null || val.isEmpty ? 'Req' : null,
+                    validator: (val) =>
+                        val == null || val.isEmpty ? 'Req' : null,
                   ),
                 ),
               ],
@@ -255,7 +279,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _selectDate,
                     icon: const Icon(Icons.calendar_today),
-                    label: Text('${_startDate.day}/${_startDate.month}/${_startDate.year}'),
+                    label: Text(
+                      '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -274,9 +300,12 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
               height: 56,
               child: FilledButton(
                 onPressed: _isSaving ? null : _saveLesson,
-                child: _isSaving 
-                  ? const CircularProgressIndicator(color: Colors.white) 
-                  : const Text('REGISTRA LEZIONE', style: TextStyle(fontSize: 16)),
+                child: _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'REGISTRA LEZIONE',
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
             ),
           ],

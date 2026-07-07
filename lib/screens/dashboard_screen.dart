@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/supabase_service.dart';
 import '../models/lesson.dart';
 import '../theme/app_theme.dart';
 import 'add_lesson_screen.dart';
 import 'contracts_screen.dart';
+import 'lessons_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,16 +22,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _totaleCompensi = 0.0;
   List<Lesson> _recentLessons = [];
 
+  // Filtro mese: null = tutto lo storico
+  DateTime? _selectedMonth;  // es. DateTime(2026, 6, 1)
+  bool get _isFiltered => _selectedMonth != null;
+
   @override
   void initState() {
     super.initState();
+    // Di default partiamo con il mese corrente
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month, 1);
     _loadData();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final stats = await _supabaseService.getDashboardStats();
+      final Map<String, dynamic> stats;
+      if (_isFiltered) {
+        stats = await _supabaseService.getDashboardStatsByMonth(
+          _selectedMonth!.year,
+          _selectedMonth!.month,
+        );
+      } else {
+        stats = await _supabaseService.getDashboardStats();
+      }
       final lessons = await _supabaseService.getRecentLessons(limit: 5);
 
       setState(() {
@@ -44,8 +61,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _prevMonth() {
+    setState(() {
+      final m = _selectedMonth ?? DateTime.now();
+      _selectedMonth = DateTime(m.year, m.month - 1, 1);
+    });
+    _loadData();
+  }
+
+  void _nextMonth() {
+    final now = DateTime.now();
+    final next = DateTime(
+      (_selectedMonth ?? now).year,
+      (_selectedMonth ?? now).month + 1,
+      1,
+    );
+    // Non permettiamo di andare nel futuro
+    if (next.isAfter(DateTime(now.year, now.month, 1))) return;
+    setState(() => _selectedMonth = next);
+    _loadData();
+  }
+
+  void _goToCurrentMonth() {
+    final now = DateTime.now();
+    setState(() => _selectedMonth = DateTime(now.year, now.month, 1));
+    _loadData();
+  }
+
+  void _toggleAllTime() {
+    setState(() => _selectedMonth = _isFiltered ? null : DateTime(DateTime.now().year, DateTime.now().month, 1));
+    _loadData();
   }
 
   @override
@@ -65,18 +114,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(textTheme, colorScheme),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
+                  // ---- Selettore Mese ----
+                  _buildMonthSelector(textTheme, colorScheme),
+                  const SizedBox(height: 20),
+
+                  // ---- Cards statistiche ----
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _buildSummaryCards(textTheme, colorScheme),
                   const SizedBox(height: 32),
+
+                  // ---- Ultime Lezioni ----
                   Text('Ultime Lezioni', style: textTheme.titleLarge),
                   const SizedBox(height: 16),
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _recentLessons.isEmpty
-                      ? const Text('Nessuna lezione trovata.')
-                      : _buildRecentLessonsList(textTheme, colorScheme),
+                          ? _buildEmptyLessons(textTheme, colorScheme)
+                          : _buildRecentLessonsList(textTheme, colorScheme),
                 ],
               ),
             ),
@@ -89,9 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             context,
             MaterialPageRoute(builder: (context) => const AddLessonScreen()),
           ).then((added) {
-            if (added == true) {
-              _loadData();
-            }
+            if (added == true) _loadData();
           });
         },
         icon: const Icon(Icons.add),
@@ -125,13 +180,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           children: [
             IconButton(
+              icon: Icon(Icons.list_alt, color: colorScheme.primary),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LessonsScreen()),
+                ).then((_) => _loadData());
+              },
+              tooltip: 'Lista Lezioni',
+              style: IconButton.styleFrom(
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                padding: const EdgeInsets.all(12),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
               icon: Icon(Icons.assignment, color: colorScheme.primary),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const ContractsScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const ContractsScreen()),
                 );
               },
               tooltip: 'Lista Contratti',
@@ -152,13 +220,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildMonthSelector(TextTheme textTheme, ColorScheme colorScheme) {
+    final now = DateTime.now();
+    final isCurrentMonth = _selectedMonth != null &&
+        _selectedMonth!.year == now.year &&
+        _selectedMonth!.month == now.month;
+    final isNextDisabled = isCurrentMonth || !_isFiltered;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Toggle "Tutto lo storico"
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: GestureDetector(
+              onTap: _toggleAllTime,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: !_isFiltered
+                      ? colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Tutto',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: !_isFiltered
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Navigazione mese
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: _isFiltered ? _prevMonth : null,
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  color: _isFiltered
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurface.withValues(alpha: 0.2),
+                ),
+                GestureDetector(
+                  onTap: !isCurrentMonth && _isFiltered ? _goToCurrentMonth : null,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _isFiltered
+                          ? DateFormat('MMMM yyyy', 'it_IT').format(_selectedMonth!)
+                          : 'Storico completo',
+                      key: ValueKey(_isFiltered ? _selectedMonth.toString() : 'all'),
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: _isFiltered
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: isNextDisabled ? null : _nextMonth,
+                  iconSize: 20,
+                  visualDensity: VisualDensity.compact,
+                  color: isNextDisabled
+                      ? colorScheme.onSurface.withValues(alpha: 0.2)
+                      : colorScheme.onSurface,
+                ),
+              ],
+            ),
+          ),
+
+          // Badge "Oggi" per tornare al mese corrente
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: GestureDetector(
+              onTap: _isFiltered && !isCurrentMonth ? _goToCurrentMonth : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isCurrentMonth && _isFiltered
+                      ? colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Oggi',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: isCurrentMonth && _isFiltered
+                        ? colorScheme.onPrimary
+                        : _isFiltered && !isCurrentMonth
+                            ? colorScheme.primary
+                            : colorScheme.onSurface.withValues(alpha: 0.3),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryCards(TextTheme textTheme, ColorScheme colorScheme) {
+    final label = _isFiltered
+        ? DateFormat('MMMM', 'it_IT').format(_selectedMonth!)
+        : 'Totale';
+
     return Row(
       children: [
         Expanded(
           child: _SummaryCard(
-            title: 'Ore Totali',
+            title: 'Ore • $label',
             value: _totaleOre.toStringAsFixed(1),
+            unit: 'h',
             icon: Icons.timer,
             color: colorScheme.primary,
             textTheme: textTheme,
@@ -168,8 +370,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(width: 16),
         Expanded(
           child: _SummaryCard(
-            title: 'Compensi',
-            value: '€${_totaleCompensi.toStringAsFixed(2)}',
+            title: 'Compenso • $label',
+            value: '€ ${_totaleCompensi.toStringAsFixed(2)}',
+            unit: '',
             icon: Icons.account_balance_wallet,
             color: AppTheme.accentColor,
             textTheme: textTheme,
@@ -177,6 +380,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmptyLessons(TextTheme textTheme, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.event_note_outlined,
+                size: 40, color: colorScheme.onSurface.withValues(alpha: 0.2)),
+            const SizedBox(height: 8),
+            Text(
+              'Nessuna lezione trovata.',
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -254,6 +482,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class _SummaryCard extends StatelessWidget {
   final String title;
   final String value;
+  final String unit;
   final IconData icon;
   final Color color;
   final TextTheme textTheme;
@@ -262,6 +491,7 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.title,
     required this.value,
+    required this.unit,
     required this.icon,
     required this.color,
     required this.textTheme,
@@ -291,16 +521,19 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             title,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: textTheme.displayMedium?.copyWith(
-              fontSize: 28,
+              fontSize: 26,
               color: colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

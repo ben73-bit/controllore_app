@@ -44,19 +44,60 @@ class SupabaseService {
     final response = await _client.from('lessons').insert(lesson.toJson()).select().single();
     return Lesson.fromJson(response);
   }
+
+  Future<void> deleteLesson(String lessonId) async {
+    await _client.from('lessons').delete().eq('id', lessonId);
+  }
+
+  /// Lezioni filtrabili per contratto e/o intervallo date.
+  /// Usato dalla schermata Lista Lezioni.
+  Future<List<Lesson>> getLessonsFiltered({
+    String? contractId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    // Costruiamo la query partendo dal FilterBuilder (prima di order/limit)
+    var query = _client.from('lessons').select();
+
+    if (contractId != null) {
+      query = query.eq('contract_id', contractId);
+    }
+    if (from != null) {
+      query = query.gte('start_date_time', from.toIso8601String());
+    }
+    if (to != null) {
+      query = query.lt('start_date_time', to.toIso8601String());
+    }
+
+    final response = await query.order('start_date_time', ascending: false);
+    return (response as List).map((json) => Lesson.fromJson(json)).toList();
+  }
+
+
   
-  // --- Calcoli Statistici (Opzionale: da spostare backend side se i dati sono molti) ---
-  
+  // --- Calcoli Statistici ---
+
+  /// Statistiche globali (tutto lo storico)
   Future<Map<String, dynamic>> getDashboardStats() async {
-    // Nota: in un'app di produzione con molti dati, queste aggregazioni si fanno
-    // tramite una View o una Stored Procedure in PostgreSQL.
-    // Per ora le simuliamo raggruppando i dati.
-    
     final lessons = await _client.from('lessons').select('duration, amount');
-    
+    return _aggregateLessons(lessons);
+  }
+
+  /// Statistiche filtrate per mese/anno specifico
+  Future<Map<String, dynamic>> getDashboardStatsByMonth(int year, int month) async {
+    final start = DateTime(year, month, 1).toIso8601String();
+    final end = DateTime(year, month + 1, 1).toIso8601String();
+    final lessons = await _client
+        .from('lessons')
+        .select('duration, amount')
+        .gte('start_date_time', start)
+        .lt('start_date_time', end);
+    return _aggregateLessons(lessons);
+  }
+
+  Map<String, dynamic> _aggregateLessons(List<dynamic> lessons) {
     double totalHours = 0.0;
     double totalAmount = 0.0;
-    
     for (var l in lessons) {
       final durationStr = l['duration'] as String?;
       if (durationStr != null && durationStr.isNotEmpty) {
@@ -69,10 +110,6 @@ class SupabaseService {
       }
       totalAmount += (l['amount'] as num?)?.toDouble() ?? 0.0;
     }
-    
-    return {
-      'total_hours': totalHours,
-      'total_amount': totalAmount,
-    };
+    return {'total_hours': totalHours, 'total_amount': totalAmount};
   }
 }
