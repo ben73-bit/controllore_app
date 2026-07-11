@@ -47,8 +47,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         }
       });
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() => _lastError = 'Errore caricamento contratti: $e');
+      }
     } finally {
       if (mounted) setState(() => _isLoadingData = false);
     }
@@ -130,8 +131,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() => _lastError = 'Errore salvataggio:\n${e.toString()}');
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

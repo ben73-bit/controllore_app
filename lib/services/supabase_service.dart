@@ -49,6 +49,50 @@ class SupabaseService {
     await _client.from('lessons').delete().eq('id', lessonId);
   }
 
+  /// Segna le lezioni selezionate come fatturate con un numero fattura e data.
+  Future<void> markLessonsAsBilled({
+    required List<String> lessonIds,
+    required String invoiceNumber,
+    required DateTime invoiceDate,
+  }) async {
+    await _client.from('lessons').update({
+      'is_billed': true,
+      'invoice_number': invoiceNumber,
+      'invoice_date': invoiceDate.toIso8601String(),
+    }).inFilter('id', lessonIds);
+  }
+
+  /// Rimuove la marcatura di fatturazione da una lezione.
+  Future<void> unmarkLessonBilling(String lessonId) async {
+    await _client.from('lessons').update({
+      'is_billed': false,
+      'invoice_number': null,
+      'invoice_date': null,
+    }).eq('id', lessonId);
+  }
+
+  /// Restituisce tutte le lezioni non ancora fatturate.
+  Future<List<Lesson>> getUnbilledLessons() async {
+    final response = await _client
+        .from('lessons')
+        .select()
+        .eq('is_billed', false)
+        .order('start_date_time', ascending: false);
+    return (response as List).map((json) => Lesson.fromJson(json)).toList();
+  }
+
+  /// Restituisce tutte le lezioni fatturate (ordinate per fattura e data).
+  Future<List<Lesson>> getBilledLessons() async {
+    final response = await _client
+        .from('lessons')
+        .select()
+        .eq('is_billed', true)
+        .order('invoice_date', ascending: false)
+        .order('start_date_time', ascending: false);
+    return (response as List).map((json) => Lesson.fromJson(json)).toList();
+  }
+
+
   /// Lezioni filtrabili per contratto e/o intervallo date.
   /// Usato dalla schermata Lista Lezioni.
   Future<List<Lesson>> getLessonsFiltered({

@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import 'add_lesson_screen.dart';
 import 'contracts_screen.dart';
 import 'lessons_screen.dart';
+import 'billing_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -180,6 +181,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           children: [
             IconButton(
+              icon: Icon(Icons.receipt_long, color: colorScheme.primary),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BillingScreen()),
+                ).then((_) => _loadData());
+              },
+              tooltip: 'Fatturazione',
+              style: IconButton.styleFrom(
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                padding: const EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
               icon: Icon(Icons.list_alt, color: colorScheme.primary),
               onPressed: () {
                 Navigator.push(
@@ -190,29 +206,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               tooltip: 'Lista Lezioni',
               style: IconButton.styleFrom(
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             IconButton(
               icon: Icon(Icons.assignment, color: colorScheme.primary),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ContractsScreen()),
-                );
+                ).then((_) => _loadData());
               },
               tooltip: 'Lista Contratti',
               style: IconButton.styleFrom(
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             CircleAvatar(
-              radius: 24,
+              radius: 20,
               backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-              child: Icon(Icons.person, color: colorScheme.primary),
+              child: Icon(Icons.person, color: colorScheme.primary, size: 20),
             ),
           ],
         ),
