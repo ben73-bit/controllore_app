@@ -24,7 +24,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Lesson> _recentLessons = [];
 
   // Filtro mese: null = tutto lo storico
-  DateTime? _selectedMonth;  // es. DateTime(2026, 6, 1)
+  DateTime? _selectedMonth; // es. DateTime(2026, 6, 1)
   bool get _isFiltered => _selectedMonth != null;
 
   @override
@@ -94,7 +94,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _toggleAllTime() {
-    setState(() => _selectedMonth = _isFiltered ? null : DateTime(DateTime.now().year, DateTime.now().month, 1));
+    setState(
+      () => _selectedMonth = _isFiltered
+          ? null
+          : DateTime(DateTime.now().year, DateTime.now().month, 1),
+    );
     _loadData();
   }
 
@@ -133,8 +137,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _recentLessons.isEmpty
-                          ? _buildEmptyLessons(textTheme, colorScheme)
-                          : _buildRecentLessonsList(textTheme, colorScheme),
+                      ? _buildEmptyLessons(textTheme, colorScheme)
+                      : _buildRecentLessonsList(textTheme, colorScheme),
                 ],
               ),
             ),
@@ -215,7 +219,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ContractsScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const ContractsScreen(),
+                  ),
                 ).then((_) => _loadData());
               },
               tooltip: 'Lista Contratti',
@@ -238,7 +244,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildMonthSelector(TextTheme textTheme, ColorScheme colorScheme) {
     final now = DateTime.now();
-    final isCurrentMonth = _selectedMonth != null &&
+    final isCurrentMonth =
+        _selectedMonth != null &&
         _selectedMonth!.year == now.year &&
         _selectedMonth!.month == now.month;
     final isNextDisabled = isCurrentMonth || !_isFiltered;
@@ -266,7 +273,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onTap: _toggleAllTime,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: !_isFiltered
                       ? colorScheme.primary
@@ -301,14 +311,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : colorScheme.onSurface.withValues(alpha: 0.2),
                 ),
                 GestureDetector(
-                  onTap: !isCurrentMonth && _isFiltered ? _goToCurrentMonth : null,
+                  onTap: !isCurrentMonth && _isFiltered
+                      ? _goToCurrentMonth
+                      : null,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
                       _isFiltered
-                          ? DateFormat('MMMM yyyy', 'it_IT').format(_selectedMonth!)
+                          ? DateFormat(
+                              'MMMM yyyy',
+                              'it_IT',
+                            ).format(_selectedMonth!)
                           : 'Storico completo',
-                      key: ValueKey(_isFiltered ? _selectedMonth.toString() : 'all'),
+                      key: ValueKey(
+                        _isFiltered ? _selectedMonth.toString() : 'all',
+                      ),
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: _isFiltered
@@ -339,7 +356,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onTap: _isFiltered && !isCurrentMonth ? _goToCurrentMonth : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isCurrentMonth && _isFiltered
                       ? colorScheme.primary
@@ -352,8 +372,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: isCurrentMonth && _isFiltered
                         ? colorScheme.onPrimary
                         : _isFiltered && !isCurrentMonth
-                            ? colorScheme.primary
-                            : colorScheme.onSurface.withValues(alpha: 0.3),
+                        ? colorScheme.primary
+                        : colorScheme.onSurface.withValues(alpha: 0.3),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -409,8 +429,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.event_note_outlined,
-                size: 40, color: colorScheme.onSurface.withValues(alpha: 0.2)),
+            Icon(
+              Icons.event_note_outlined,
+              size: 40,
+              color: colorScheme.onSurface.withValues(alpha: 0.2),
+            ),
             const SizedBox(height: 8),
             Text(
               'Nessuna lezione trovata.',
@@ -432,64 +455,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final lesson = _recentLessons[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+        return InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddLessonScreen(lesson: lesson),
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+            ).then((updated) {
+              if (updated == true) _loadData();
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                child: Icon(
-                  lesson.isBilled ? Icons.check_circle : Icons.class_,
-                  color: lesson.isBilled ? Colors.green : colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lesson.summary ?? 'Lezione',
-                      style: textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${lesson.duration} • ${lesson.startDateTime.day}/${lesson.startDateTime.month}/${lesson.startDateTime.year}',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (lesson.amount != null)
-                Text(
-                  '€ ${lesson.amount!.toStringAsFixed(2)}',
-                  style: textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    lesson.isBilled ? Icons.check_circle : Icons.class_,
+                    color: lesson.isBilled ? Colors.green : colorScheme.primary,
                   ),
                 ),
-            ],
-          ),
-        );
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lesson.summary ?? 'Lezione',
+                        style: textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${lesson.duration} • ${lesson.startDateTime.day}/${lesson.startDateTime.month}/${lesson.startDateTime.year}',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (lesson.amount != null)
+                  Text(
+                    '€ ${lesson.amount!.toStringAsFixed(2)}',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+          ), // chiude Container
+        ); // chiude InkWell
       },
     );
   }

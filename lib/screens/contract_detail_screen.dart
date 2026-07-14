@@ -4,6 +4,7 @@ import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
 import 'add_contract_screen.dart';
+import 'add_lesson_screen.dart';
 
 class ContractDetailScreen extends StatefulWidget {
   final Contract contract;
@@ -32,13 +33,17 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
   Future<void> _loadLessons() async {
     setState(() => _isLoading = true);
     try {
-      final lessons = await _supabaseService.getLessonsForContract(widget.contract.id!);
+      final lessons = await _supabaseService.getLessonsForContract(
+        widget.contract.id!,
+      );
       double hours = 0;
       double amount = 0;
       for (final l in lessons) {
         final parts = l.duration.split(':');
         if (parts.length >= 2) {
-          hours += (int.tryParse(parts[0]) ?? 0) + (int.tryParse(parts[1]) ?? 0) / 60.0;
+          hours +=
+              (int.tryParse(parts[0]) ?? 0) +
+              (int.tryParse(parts[1]) ?? 0) / 60.0;
         }
         amount += l.amount ?? 0;
       }
@@ -62,7 +67,11 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 40),
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.red,
+          size: 40,
+        ),
         title: const Text('Elimina Lezione'),
         content: Text(
           'Sei sicuro di voler eliminare\n"${lesson.summary ?? 'Lezione'}"?',
@@ -95,7 +104,8 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
           for (final l in _lessons) {
             final parts = l.duration.split(':');
             if (parts.length >= 2) {
-              _totalHours += (int.tryParse(parts[0]) ?? 0) +
+              _totalHours +=
+                  (int.tryParse(parts[0]) ?? 0) +
                   (int.tryParse(parts[1]) ?? 0) / 60.0;
             }
             _totalAmount += l.amount ?? 0;
@@ -111,10 +121,7 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
         );
         _loadLessons();
       }
@@ -137,10 +144,10 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     final Color progressColor = progress == null
         ? colorScheme.primary
         : progress > 0.9
-            ? Colors.red
-            : progress > 0.7
-                ? Colors.orange
-                : colorScheme.primary;
+        ? Colors.red
+        : progress > 0.7
+        ? Colors.orange
+        : colorScheme.primary;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -161,7 +168,8 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AddContractScreen(contract: contract),
+                        builder: (context) =>
+                            AddContractScreen(contract: contract),
                       ),
                     ).then((updated) {
                       if (updated == true) _loadLessons();
@@ -175,10 +183,7 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        colorScheme.primary,
-                        colorScheme.secondary,
-                      ],
+                      colors: [colorScheme.primary, colorScheme.secondary],
                     ),
                   ),
                   child: SafeArea(
@@ -191,7 +196,10 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                           if (contract.contractNumber != null)
                             Container(
                               margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
@@ -223,7 +231,11 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                           // Tariffa oraria
                           Row(
                             children: [
-                              const Icon(Icons.payments_outlined, color: Colors.white, size: 18),
+                              const Icon(
+                                Icons.payments_outlined,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '${currency.format(contract.hourlyRate)} / ora',
@@ -256,8 +268,13 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                         children: [
                           // ---- Card statistiche ----
                           _buildStatsCard(
-                            context, colorScheme, textTheme, currency,
-                            progress, progressColor, limitHours,
+                            context,
+                            colorScheme,
+                            textTheme,
+                            currency,
+                            progress,
+                            progressColor,
+                            limitHours,
                           ),
                           const SizedBox(height: 28),
 
@@ -276,7 +293,7 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                           const SizedBox(height: 12),
 
                           if (_lessons.isEmpty)
-                            _buildEmptyLessons(colorScheme, textTheme)
+                            _buildEmptyLessons(colorScheme, textTheme),
                         ],
                       ),
                     ),
@@ -306,10 +323,19 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                         child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.delete_outline, color: Colors.white, size: 26),
+                            Icon(
+                              Icons.delete_outline,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                             SizedBox(height: 4),
-                            Text('Elimina',
-                                style: TextStyle(color: Colors.white, fontSize: 12)),
+                            Text(
+                              'Elimina',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -359,7 +385,11 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                   color: colorScheme.primary,
                 ),
               ),
-              Container(width: 1, height: 48, color: colorScheme.outline.withValues(alpha: 0.2)),
+              Container(
+                width: 1,
+                height: 48,
+                color: colorScheme.outline.withValues(alpha: 0.2),
+              ),
               Expanded(
                 child: _buildStatItem(
                   context,
@@ -370,13 +400,18 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                 ),
               ),
               if (limitHours != null) ...[
-                Container(width: 1, height: 48, color: colorScheme.outline.withValues(alpha: 0.2)),
+                Container(
+                  width: 1,
+                  height: 48,
+                  color: colorScheme.outline.withValues(alpha: 0.2),
+                ),
                 Expanded(
                   child: _buildStatItem(
                     context,
                     icon: Icons.hourglass_bottom,
                     label: 'Ore Rimanenti',
-                    value: '${(limitHours - _totalHours).clamp(0, limitHours).toStringAsFixed(1)} h',
+                    value:
+                        '${(limitHours - _totalHours).clamp(0, limitHours).toStringAsFixed(1)} h',
                     color: progressColor,
                   ),
                 ),
@@ -390,7 +425,9 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
               children: [
                 Text(
                   '${_totalHours.toStringAsFixed(1)} / $limitHours ore utilizzate',
-                  style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   '${(progress * 100).toInt()}%',
@@ -440,14 +477,20 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
         Text(
           label,
           style: textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.5),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLessonTile(Lesson lesson, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildLessonTile(
+    Lesson lesson,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
     final timeFormat = DateFormat('HH:mm', 'it_IT');
     final currency = NumberFormat.simpleCurrency(locale: 'it_IT');
 
@@ -459,100 +502,129 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
         ? (m > 0 ? '${h}h ${m}min' : '${h}h')
         : '${m}min';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          // Icona data
-          Container(
-            width: 44,
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  lesson.startDateTime.day.toString(),
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                Text(
-                  DateFormat('MMM', 'it_IT').format(lesson.startDateTime).toUpperCase(),
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddLessonScreen(lesson: lesson),
           ),
-          const SizedBox(width: 14),
-          // Dettagli
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lesson.summary ?? 'Lezione',
-                  style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 13, color: colorScheme.onSurface.withValues(alpha: 0.4)),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${timeFormat.format(lesson.startDateTime)} · $durationLabel',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.55),
+        ).then((updated) {
+          if (updated == true) {
+            _loadLessons();
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            // Icona data
+            Container(
+              width: 44,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    lesson.startDateTime.day.toString(),
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  Text(
+                    DateFormat(
+                      'MMM',
+                      'it_IT',
+                    ).format(lesson.startDateTime).toUpperCase(),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            // Dettagli
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lesson.summary ?? 'Lezione',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 13,
+                        color: colorScheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${timeFormat.format(lesson.startDateTime)} · $durationLabel',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Importo
+            if (lesson.amount != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    currency.format(lesson.amount),
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade600,
+                    ),
+                  ),
+                  if (lesson.isBilled)
+                    Container(
+                      margin: const EdgeInsets.only(top: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Fatturata',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: Colors.green,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Importo
-          if (lesson.amount != null)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  currency.format(lesson.amount),
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade600,
-                  ),
-                ),
-                if (lesson.isBilled)
-                  Container(
-                    margin: const EdgeInsets.only(top: 3),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Fatturata',
-                      style: textTheme.labelSmall?.copyWith(color: Colors.green),
-                    ),
-                  ),
-              ],
-            ),
-        ],
-      ),
-    );
+                ],
+              ),
+          ],
+        ),
+      ), // chiude Container
+    ); // chiude InkWell
   }
 
   Widget _buildEmptyLessons(ColorScheme colorScheme, TextTheme textTheme) {
@@ -561,7 +633,11 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
         padding: const EdgeInsets.symmetric(vertical: 48),
         child: Column(
           children: [
-            Icon(Icons.event_note_outlined, size: 56, color: colorScheme.onSurface.withValues(alpha: 0.2)),
+            Icon(
+              Icons.event_note_outlined,
+              size: 56,
+              color: colorScheme.onSurface.withValues(alpha: 0.2),
+            ),
             const SizedBox(height: 12),
             Text(
               'Nessuna lezione registrata per questo contratto.',

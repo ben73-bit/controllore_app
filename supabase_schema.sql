@@ -36,3 +36,54 @@ ALTER TABLE public.lessons ENABLE ROW LEVEL SECURITY;
 -- Policy single-user per sviluppo
 CREATE POLICY "Allow anonymous read/write on contracts" ON public.contracts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anonymous read/write on lessons" ON public.lessons FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger per ricalcolare automaticamente billed_hours nei contratti
+-- quando una lezione viene inserita, modificata (es. fatturata/sfatturata) o eliminata.
+CREATE OR REPLACE FUNCTION public.update_contract_billed_hours()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_contract_id UUID;
+BEGIN
+    -- Determiniamo quale contract_id aggiornare
+    IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+        v_contract_id := NEW.contract_id;
+    ELSE
+        v_contract_id := OLD.contract_id;
+    END IF;
+
+    -- Ricalcoliamo billed_hours per il contratto corrente
+    UPDATE public.contracts
+    SET billed_hours = (
+        SELECT COALESCE(SUM(
+            (split_part(duration, ':', 1)::NUMERIC) + 
+            (split_part(duration, ':', 2)::NUMERIC / 60.0) +
+            (COALESCE(nullif(split_part(duration, ':', 3), ''), '0')::NUMERIC / 3600.0)
+        ), 0.0)
+        FROM public.lessons
+        WHERE contract_id = v_contract_id AND is_billed = true
+    )
+    WHERE id = v_contract_id;
+
+    -- Se si tratta di un UPDATE e il contract_id è cambiato, aggiorniamo anche il vecchio contratto
+    IF (TG_OP = 'UPDATE' AND OLD.contract_id IS DISTINCT FROM NEW.contract_id) THEN
+        UPDATE public.contracts
+        SET billed_hours = (
+            SELECT COALESCE(SUM(
+                (split_part(duration, ':', 1)::NUMERIC) + 
+                (split_part(duration, ':', 2)::NUMERIC / 60.0) +
+                (COALESCE(nullif(split_part(duration, ':', 3), ''), '0')::NUMERIC / 3600.0)
+            ), 0.0)
+            FROM public.lessons
+            WHERE contract_id = OLD.contract_id AND is_billed = true
+        )
+        WHERE id = OLD.contract_id;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Creazione trigger
+CREATE OR REPLACE TRIGGER trigger_update_contract_billed_hours
+AFTER INSERT OR UPDATE OR DELETE ON public.lessons
+FOR EACH ROW EXECUTE FUNCTION public.update_contract_billed_hours();

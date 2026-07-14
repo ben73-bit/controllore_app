@@ -5,7 +5,10 @@ import '../models/lesson.dart';
 import '../services/supabase_service.dart';
 
 class AddLessonScreen extends StatefulWidget {
-  const AddLessonScreen({super.key});
+  /// Se [lesson] è fornito, la schermata è in modalità MODIFICA.
+  final Lesson? lesson;
+
+  const AddLessonScreen({super.key, this.lesson});
 
   @override
   State<AddLessonScreen> createState() => _AddLessonScreenState();
@@ -31,10 +34,33 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
 
   final SupabaseService _supabaseService = SupabaseService();
 
+  bool get _isEditing => widget.lesson != null;
+
   @override
   void initState() {
     super.initState();
     _loadContracts();
+
+    // Pre-popola i campi in modalità modifica
+    if (_isEditing) {
+      final l = widget.lesson!;
+      _summaryController.text = l.summary ?? '';
+
+      // Parsing della durata (formato HH:MM:SS o HH:MM)
+      final parts = l.duration.split(':');
+      if (parts.isNotEmpty) {
+        _hoursController.text = (int.tryParse(parts[0]) ?? 1).toString();
+      }
+      if (parts.length > 1) {
+        _minutesController.text = (int.tryParse(parts[1]) ?? 0).toString();
+      }
+
+      _startDate = l.startDateTime;
+      _startTime = TimeOfDay(
+        hour: l.startDateTime.hour,
+        minute: l.startDateTime.minute,
+      );
+    }
   }
 
   Future<void> _loadContracts() async {
@@ -42,8 +68,21 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       final contracts = await _supabaseService.getContracts();
       setState(() {
         _contracts = contracts;
-        if (_contracts.isNotEmpty) {
-          _selectedContract = _contracts.first;
+        if (_isEditing) {
+          // Seleziona il contratto associato alla lezione da modificare
+          try {
+            _selectedContract = _contracts.firstWhere(
+              (c) => c.id == widget.lesson!.contractId,
+            );
+          } catch (_) {
+            if (_contracts.isNotEmpty) {
+              _selectedContract = _contracts.first;
+            }
+          }
+        } else {
+          if (_contracts.isNotEmpty) {
+            _selectedContract = _contracts.first;
+          }
         }
       });
     } catch (e) {
@@ -113,21 +152,29 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
           totalHoursDecimal * _selectedContract!.hourlyRate;
 
       final lesson = Lesson(
-        id: 'LESSON-${DateTime.now().millisecondsSinceEpoch}',
+        id: _isEditing
+            ? widget.lesson!.id
+            : 'LESSON-${DateTime.now().millisecondsSinceEpoch}',
         contractId: _selectedContract!.id!,
         startDateTime: finalDateTime,
         duration: durationStr,
-        isConfirmed: true,
+        isConfirmed: _isEditing ? widget.lesson!.isConfirmed : true,
         summary: _summaryController.text.trim(),
         description: _descriptionController.text.isNotEmpty
             ? _descriptionController.text.trim()
-            : null,
+            : (_isEditing ? widget.lesson!.description : null),
         amount: calculatedAmount,
-        isBilled: false,
+        isBilled: _isEditing ? widget.lesson!.isBilled : false,
+        invoiceNumber: _isEditing ? widget.lesson!.invoiceNumber : null,
+        invoiceDate: _isEditing ? widget.lesson!.invoiceDate : null,
       );
 
-      // Inserimento semplice senza .select().single() per evitare errori di parsing
-      await Supabase.instance.client.from('lessons').insert(lesson.toJson());
+      if (_isEditing) {
+        await _supabaseService.updateLesson(lesson);
+      } else {
+        // Inserimento semplice senza .select().single() per evitare errori di parsing
+        await Supabase.instance.client.from('lessons').insert(lesson.toJson());
+      }
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -142,7 +189,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuova Lezione')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Modifica Lezione' : 'Nuova Lezione'),
+      ),
       body: _isLoadingData
           ? const Center(child: CircularProgressIndicator())
           : _contracts.isEmpty
@@ -304,9 +353,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                 onPressed: _isSaving ? null : _saveLesson,
                 child: _isSaving
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'REGISTRA LEZIONE',
-                        style: TextStyle(fontSize: 16),
+                    : Text(
+                        _isEditing ? 'SALVA MODIFICHE' : 'REGISTRA LEZIONE',
+                        style: const TextStyle(fontSize: 16),
                       ),
               ),
             ),

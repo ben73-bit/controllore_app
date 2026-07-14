@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
+import '../utils/ics_parser.dart';
 import 'add_lesson_screen.dart';
+import 'import_lessons_screen.dart';
 
 class LessonsScreen extends StatefulWidget {
   /// Se passato, pre-seleziona questo contratto nel filtro.
@@ -75,7 +79,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
     for (final l in lessons) {
       final parts = l.duration.split(':');
       if (parts.length >= 2) {
-        hours += (int.tryParse(parts[0]) ?? 0) +
+        hours +=
+            (int.tryParse(parts[0]) ?? 0) +
             (int.tryParse(parts[1]) ?? 0) / 60.0;
       }
       amount += l.amount ?? 0;
@@ -116,7 +121,11 @@ class _LessonsScreenState extends State<LessonsScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 40),
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.red,
+          size: 40,
+        ),
         title: const Text('Elimina Lezione'),
         content: Text(
           'Sei sicuro di voler eliminare la lezione\n"${lesson.summary ?? 'Lezione'}"?\n\nL\'operazione è irreversibile.',
@@ -143,7 +152,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lezione "${lesson.summary ?? 'Lezione'}" eliminata.'),
+            content: Text(
+              'Lezione "${lesson.summary ?? 'Lezione'}" eliminata.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -156,7 +167,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
           for (final l in _lessons) {
             final parts = l.duration.split(':');
             if (parts.length >= 2) {
-              _filteredHours += (int.tryParse(parts[0]) ?? 0) +
+              _filteredHours +=
+                  (int.tryParse(parts[0]) ?? 0) +
                   (int.tryParse(parts[1]) ?? 0) / 60.0;
             }
             _filteredAmount += l.amount ?? 0;
@@ -194,7 +206,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
           children: [
             Icon(Icons.delete_outline, color: Colors.white, size: 26),
             SizedBox(height: 4),
-            Text('Elimina', style: TextStyle(color: Colors.white, fontSize: 12)),
+            Text(
+              'Elimina',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -235,6 +250,25 @@ class _LessonsScreenState extends State<LessonsScreen> {
               icon: const Icon(Icons.filter_alt_off, size: 18),
               label: const Text('Reset'),
             ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'import_ics') {
+                await _pickAndImportIcs();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'import_ics',
+                child: Row(
+                  children: [
+                    Icon(Icons.upload_file, size: 20),
+                    SizedBox(width: 8),
+                    Text('Importa da .ics'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
@@ -243,19 +277,18 @@ class _LessonsScreenState extends State<LessonsScreen> {
           _buildFilterPanel(colorScheme, textTheme),
 
           // ---- Barra riassunto ----
-          if (!_isLoading)
-            _buildSummaryBar(colorScheme, textTheme, currency),
+          if (!_isLoading) _buildSummaryBar(colorScheme, textTheme, currency),
 
           // ---- Lista ----
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _lessons.isEmpty
-                    ? _buildEmpty(colorScheme, textTheme)
-                    : RefreshIndicator(
-                        onRefresh: _loadAll,
-                        child: _buildGroupedList(colorScheme, textTheme, currency),
-                      ),
+                ? _buildEmpty(colorScheme, textTheme)
+                : RefreshIndicator(
+                    onRefresh: _loadAll,
+                    child: _buildGroupedList(colorScheme, textTheme, currency),
+                  ),
           ),
         ],
       ),
@@ -274,9 +307,59 @@ class _LessonsScreenState extends State<LessonsScreen> {
     );
   }
 
+  Future<void> _pickAndImportIcs() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.any,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final content = await file.readAsString();
+
+        final parsedLessons = IcsParser.parse(content);
+
+        if (parsedLessons.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Nessun evento valido trovato nel file.'),
+              ),
+            );
+          }
+          return;
+        }
+
+        if (mounted) {
+          final imported = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ImportLessonsScreen(parsedLessons: parsedLessons),
+            ),
+          );
+
+          if (imported == true) {
+            _loadAll(); // Ricarica la lista
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore lettura file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildFilterPanel(ColorScheme colorScheme, TextTheme textTheme) {
     final now = DateTime.now();
-    final isCurrentMonth = _selectedMonth != null &&
+    final isCurrentMonth =
+        _selectedMonth != null &&
         _selectedMonth!.year == now.year &&
         _selectedMonth!.month == now.month;
 
@@ -314,33 +397,39 @@ class _LessonsScreenState extends State<LessonsScreen> {
                   ),
                 ),
                 // Chip per ogni contratto
-                ..._contracts.map((c) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(
-                          c.contractNumber != null && c.contractNumber!.isNotEmpty
-                              ? '${c.companyName} · ${c.contractNumber}'
-                              : c.companyName,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        selected: _selectedContract?.id == c.id,
-                        onSelected: (_) {
-                          setState(() => _selectedContract =
-                              _selectedContract?.id == c.id ? null : c);
-                          _applyFilters();
-                        },
-                        showCheckmark: false,
-                        selectedColor: colorScheme.primary.withValues(alpha: 0.15),
-                        labelStyle: TextStyle(
-                          color: _selectedContract?.id == c.id
-                              ? colorScheme.primary
-                              : colorScheme.onSurface,
-                          fontWeight: _selectedContract?.id == c.id
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
+                ..._contracts.map(
+                  (c) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(
+                        c.contractNumber != null && c.contractNumber!.isNotEmpty
+                            ? '${c.companyName} · ${c.contractNumber}'
+                            : c.companyName,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    )),
+                      selected: _selectedContract?.id == c.id,
+                      onSelected: (_) {
+                        setState(
+                          () => _selectedContract =
+                              _selectedContract?.id == c.id ? null : c,
+                        );
+                        _applyFilters();
+                      },
+                      showCheckmark: false,
+                      selectedColor: colorScheme.primary.withValues(
+                        alpha: 0.15,
+                      ),
+                      labelStyle: TextStyle(
+                        color: _selectedContract?.id == c.id
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                        fontWeight: _selectedContract?.id == c.id
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -353,13 +442,19 @@ class _LessonsScreenState extends State<LessonsScreen> {
               // Toggle "Tutti i mesi"
               GestureDetector(
                 onTap: () {
-                  setState(() => _selectedMonth =
-                      _selectedMonth == null ? DateTime(now.year, now.month, 1) : null);
+                  setState(
+                    () => _selectedMonth = _selectedMonth == null
+                        ? DateTime(now.year, now.month, 1)
+                        : null,
+                  );
                   _applyFilters();
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: _selectedMonth == null
                         ? colorScheme.primary
@@ -387,10 +482,18 @@ class _LessonsScreenState extends State<LessonsScreen> {
                   iconSize: 20,
                 ),
                 GestureDetector(
-                  onTap: !isCurrentMonth ? () {
-                    setState(() => _selectedMonth = DateTime(now.year, now.month, 1));
-                    _applyFilters();
-                  } : null,
+                  onTap: !isCurrentMonth
+                      ? () {
+                          setState(
+                            () => _selectedMonth = DateTime(
+                              now.year,
+                              now.month,
+                              1,
+                            ),
+                          );
+                          _applyFilters();
+                        }
+                      : null,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
@@ -420,7 +523,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Widget _buildSummaryBar(
-    ColorScheme colorScheme, TextTheme textTheme, NumberFormat currency) {
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    NumberFormat currency,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
@@ -431,7 +537,11 @@ class _LessonsScreenState extends State<LessonsScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.receipt_long_outlined, size: 16, color: colorScheme.primary),
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 16,
+            color: colorScheme.primary,
+          ),
           const SizedBox(width: 6),
           Text(
             '${_lessons.length} lezioni',
@@ -464,7 +574,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Widget _buildGroupedList(
-    ColorScheme colorScheme, TextTheme textTheme, NumberFormat currency) {
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    NumberFormat currency,
+  ) {
     // Se il filtro mese è attivo, non raggruppa
     if (_selectedMonth != null) {
       return ListView.separated(
@@ -494,7 +607,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
         for (final l in items) {
           final parts = l.duration.split(':');
           if (parts.length >= 2) {
-            secHours += (int.tryParse(parts[0]) ?? 0) +
+            secHours +=
+                (int.tryParse(parts[0]) ?? 0) +
                 (int.tryParse(parts[1]) ?? 0) / 60.0;
           }
           secAmount += l.amount ?? 0;
@@ -527,14 +641,17 @@ class _LessonsScreenState extends State<LessonsScreen> {
                 ],
               ),
             ),
-            ...items.asMap().entries.map((e) => Padding(
-                  padding: EdgeInsets.only(
-                      bottom: e.key < items.length - 1 ? 10 : 20),
-                  child: _dismissibleLesson(
-                    e.value,
-                    _buildLessonCard(e.value, colorScheme, textTheme, currency),
-                  ),
-                )),
+            ...items.asMap().entries.map(
+              (e) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: e.key < items.length - 1 ? 10 : 20,
+                ),
+                child: _dismissibleLesson(
+                  e.value,
+                  _buildLessonCard(e.value, colorScheme, textTheme, currency),
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -551,154 +668,182 @@ class _LessonsScreenState extends State<LessonsScreen> {
     final parts = lesson.duration.split(':');
     final h = int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0;
     final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
-    final durationLabel =
-        h > 0 ? (m > 0 ? '${h}h ${m}min' : '${h}h') : '${m}min';
+    final durationLabel = h > 0
+        ? (m > 0 ? '${h}h ${m}min' : '${h}h')
+        : '${m}min';
 
     // Nome contratto (cerca nella lista locale)
     final contract = _contracts.firstWhere(
       (c) => c.id == lesson.contractId,
       orElse: () => Contract(
-          id: null,
-          companyName: '—',
-          hourlyRate: 0,
-          startDate: DateTime.now()),
+        id: null,
+        companyName: '—',
+        hourlyRate: 0,
+        startDate: DateTime.now(),
+      ),
     );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AddLessonScreen(lesson: lesson)),
+        ).then((updated) {
+          if (updated == true) {
+            _applyFilters();
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colorScheme.outline.withValues(alpha: 0.08),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Calendario miniatura
-          Container(
-            width: 46,
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
-            child: Column(
-              children: [
-                Text(
-                  lesson.startDateTime.day.toString(),
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
+          ],
+        ),
+        child: Row(
+          children: [
+            // Calendario miniatura
+            Container(
+              width: 46,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    lesson.startDateTime.day.toString(),
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
                   ),
-                ),
-                Text(
-                  DateFormat('MMM', 'it_IT')
-                      .format(lesson.startDateTime)
-                      .toUpperCase(),
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10,
+                  Text(
+                    DateFormat(
+                      'MMM',
+                      'it_IT',
+                    ).format(lesson.startDateTime).toUpperCase(),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
-          // Dettagli
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lesson.summary ?? 'Lezione',
-                  style: textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Icon(Icons.access_time,
+            const SizedBox(width: 14),
+            // Dettagli
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lesson.summary ?? 'Lezione',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
                         size: 12,
-                        color: colorScheme.onSurface.withValues(alpha: 0.4)),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${timeFormat.format(lesson.startDateTime)} · $durationLabel',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.55),
+                        color: colorScheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${timeFormat.format(lesson.startDateTime)} · $durationLabel',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Nome contratto (mostrato se non c'è filtro contratto)
+                  if (_selectedContract == null && contract.companyName != '—')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.business,
+                            size: 11,
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              _contractLabel(contract),
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.45,
+                                ),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                // Nome contratto (mostrato se non c'è filtro contratto)
-                if (_selectedContract == null && contract.companyName != '—')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Row(
-                      children: [
-                        Icon(Icons.business,
-                            size: 11,
-                            color:
-                                colorScheme.onSurface.withValues(alpha: 0.35)),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            _contractLabel(contract),
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurface
-                                  .withValues(alpha: 0.45),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Importo e stato fatturazione
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (lesson.amount != null)
+                  Text(
+                    currency.format(lesson.amount),
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade600,
+                    ),
+                  ),
+                if (lesson.isBilled)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Fatturata',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: Colors.green.shade700,
+                      ),
                     ),
                   ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          // Importo e stato fatturazione
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (lesson.amount != null)
-                Text(
-                  currency.format(lesson.amount),
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade600,
-                  ),
-                ),
-              if (lesson.isBilled)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Fatturata',
-                    style: textTheme.labelSmall
-                        ?.copyWith(color: Colors.green.shade700),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      ), // chiude Container
+    ); // chiude InkWell
   }
 
   Widget _buildEmpty(ColorScheme colorScheme, TextTheme textTheme) {
@@ -708,9 +853,11 @@ class _LessonsScreenState extends State<LessonsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off_rounded,
-                size: 64,
-                color: colorScheme.onSurface.withValues(alpha: 0.15)),
+            Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: colorScheme.onSurface.withValues(alpha: 0.15),
+            ),
             const SizedBox(height: 16),
             Text(
               'Nessuna lezione trovata\ncon i filtri selezionati.',
