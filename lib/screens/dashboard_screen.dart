@@ -37,32 +37,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final Map<String, dynamic> stats;
-      if (_isFiltered) {
-        stats = await _supabaseService.getDashboardStatsByMonth(
-          _selectedMonth!.year,
-          _selectedMonth!.month,
-        );
-      } else {
-        stats = await _supabaseService.getDashboardStats();
-      }
-      final lessons = await _supabaseService.getRecentLessons(limit: 5);
+      final statsFuture = _isFiltered
+          ? _supabaseService.getDashboardStatsByMonth(
+              _selectedMonth!.year,
+              _selectedMonth!.month,
+            )
+          : _supabaseService.getDashboardStats();
 
-      setState(() {
-        _totaleOre = stats['total_hours'];
-        _totaleCompensi = stats['total_amount'];
-        _recentLessons = lessons;
-      });
+      final lessonsFuture = _supabaseService.getRecentLessons(limit: 5);
+
+      final results = await Future.wait([statsFuture, lessonsFuture]);
+      final stats = results[0] as Map<String, dynamic>;
+      final lessons = results[1] as List<Lesson>;
+
+      if (mounted) {
+        setState(() {
+          _totaleOre = (stats['total_hours'] as num?)?.toDouble() ?? 0.0;
+          _totaleCompensi = (stats['total_amount'] as num?)?.toDouble() ?? 0.0;
+          _recentLessons = lessons;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore durante il caricamento dei dati: $e')),
+          SnackBar(
+            content: Text('Impossibile caricare i dati: $e'),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Riprova',
+              onPressed: _loadData,
+            ),
+          ),
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -166,23 +180,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Ciao!',
-              style: textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ciao!',
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Dashboard',
-              style: textTheme.displayLarge?.copyWith(fontSize: 32),
-            ),
-          ],
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Dashboard',
+                  style: textTheme.displayLarge?.copyWith(fontSize: 28),
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(width: 8),
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: Icon(Icons.receipt_long, color: colorScheme.primary),
@@ -195,10 +217,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               tooltip: 'Fatturazione',
               style: IconButton.styleFrom(
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             IconButton(
               icon: Icon(Icons.list_alt, color: colorScheme.primary),
               onPressed: () {
@@ -210,10 +232,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               tooltip: 'Lista Lezioni',
               style: IconButton.styleFrom(
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             IconButton(
               icon: Icon(Icons.assignment, color: colorScheme.primary),
               onPressed: () {
@@ -227,14 +249,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               tooltip: 'Lista Contratti',
               style: IconButton.styleFrom(
                 backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             CircleAvatar(
-              radius: 20,
+              radius: 18,
               backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-              child: Icon(Icons.person, color: colorScheme.primary, size: 20),
+              child: Icon(Icons.person, color: colorScheme.primary, size: 18),
             ),
           ],
         ),

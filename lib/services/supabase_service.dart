@@ -42,7 +42,8 @@ class SupabaseService {
         .from('lessons')
         .select()
         .order('start_date_time', ascending: false)
-        .limit(limit);
+        .limit(limit)
+        .timeout(_timeout);
     return (response as List).map((json) => Lesson.fromJson(json)).toList();
   }
 
@@ -164,9 +165,14 @@ class SupabaseService {
 
   // --- Calcoli Statistici ---
 
+  static const Duration _timeout = Duration(seconds: 10);
+
   /// Statistiche globali (tutto lo storico)
   Future<Map<String, dynamic>> getDashboardStats() async {
-    final lessons = await _client.from('lessons').select('duration, amount');
+    final lessons = await _client
+        .from('lessons')
+        .select('duration, amount')
+        .timeout(_timeout);
     return _aggregateLessons(lessons);
   }
 
@@ -181,7 +187,8 @@ class SupabaseService {
         .from('lessons')
         .select('duration, amount')
         .gte('start_date_time', start)
-        .lt('start_date_time', end);
+        .lt('start_date_time', end)
+        .timeout(_timeout);
     return _aggregateLessons(lessons);
   }
 
