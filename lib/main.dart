@@ -9,14 +9,22 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Inizializza i dati di localizzazione per le date (it_IT)
-  await initializeDateFormatting('it_IT', null);
+  try {
+    await initializeDateFormatting('it_IT', null);
+  } catch (e) {
+    debugPrint('Errore inizializzazione date formatting: $e');
+  }
 
   // Initialize Supabase
-  await Supabase.initialize(
-    url: 'https://vwytuyexzbxkrncllyec.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXR1eWV4emJ4a3JuY2xseWVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjkxMzksImV4cCI6MjA5NzgwNTEzOX0.YweByFnt2Xbh6CDWJ6I87aMQM3719sLxd9Z2TaUfbcg',
-  );
+  try {
+    await Supabase.initialize(
+      url: 'https://vwytuyexzbxkrncllyec.supabase.co',
+      anonKey:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXR1eWV4emJ4a3JuY2xseWVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjkxMzksImV4cCI6MjA5NzgwNTEzOX0.YweByFnt2Xbh6CDWJ6I87aMQM3719sLxd9Z2TaUfbcg',
+    );
+  } catch (e) {
+    debugPrint('Errore inizializzazione Supabase: $e');
+  }
 
   runApp(const ControllOreApp());
 }
