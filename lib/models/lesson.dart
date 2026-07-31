@@ -46,7 +46,9 @@ class Lesson {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      // Includiamo 'id' solo se non è vuoto: se vuoto, il DB genererà
+      // automaticamente un UUID tramite DEFAULT gen_random_uuid().
+      if (id.isNotEmpty) 'id': id,
       if (contractId != null) 'contract_id': contractId,
       'start_date_time': startDateTime.toIso8601String(),
       'duration': duration,

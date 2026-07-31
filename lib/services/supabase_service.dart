@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../models/contract.dart';
 import '../models/lesson.dart';
 
@@ -70,17 +71,34 @@ class SupabaseService {
   }
 
   /// Inserisce una lista di lezioni in blocco.
+  /// L'UUID viene generato client-side per evitare problemi con il DEFAULT del DB.
   Future<void> insertLessons(List<Lesson> lessons) async {
     if (lessons.isEmpty) return;
 
-    // Convertiamo le lezioni in JSON
+    final uuid = const Uuid();
+
     final items = lessons.map((l) {
-      final json = l.toJson();
-      // Rimuoviamo l'id se vuoto (verrà autogenerato dal DB oppure usiamo un ID locale)
-      if (json['id'] == '') {
-        json.remove('id');
+      // Costruiamo la mappa manualmente escludendo campi nulli non necessari.
+      // L'id viene sempre generato qui, UUID v4, valido per PostgreSQL uuid.
+      final map = <String, dynamic>{
+        'id': uuid.v4(),
+        'start_date_time': l.startDateTime.toUtc().toIso8601String(),
+        'duration': l.duration,
+        'is_confirmed': l.isConfirmed,
+        'is_billed': l.isBilled,
+      };
+      if (l.contractId != null && l.contractId!.isNotEmpty) {
+        map['contract_id'] = l.contractId;
       }
-      return json;
+      if (l.summary != null) map['summary'] = l.summary;
+      if (l.description != null) map['description'] = l.description;
+      if (l.location != null) map['location'] = l.location;
+      if (l.invoiceNumber != null) map['invoice_number'] = l.invoiceNumber;
+      if (l.invoiceDate != null) {
+        map['invoice_date'] = l.invoiceDate!.toUtc().toIso8601String();
+      }
+      if (l.amount != null) map['amount'] = l.amount;
+      return map;
     }).toList();
 
     await _client.from('lessons').insert(items);
