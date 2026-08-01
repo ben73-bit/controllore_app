@@ -154,10 +154,7 @@ class _ImportLessonsScreenState extends State<ImportLessonsScreen> {
             itemBuilder: (ctx, i) {
               final c = _contracts[i];
               return ListTile(
-                title: Text(c.companyName),
-                subtitle: c.contractNumber != null
-                    ? Text(c.contractNumber!)
-                    : null,
+                title: Text(c.displayName),
                 onTap: () => Navigator.pop(ctx, c),
               );
             },
@@ -303,7 +300,7 @@ class _ImportLessonsScreenState extends State<ImportLessonsScreen> {
                                       return DropdownMenuItem(
                                         value: c.id,
                                         child: Text(
-                                          c.companyName,
+                                          c.displayName,
                                           style: const TextStyle(fontSize: 13),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,

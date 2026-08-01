@@ -273,8 +273,13 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
               initialValue: _selectedContract,
               items: _contracts
                   .map(
-                    (c) =>
-                        DropdownMenuItem(value: c, child: Text(c.companyName)),
+                    (c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(
+                        c.displayName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   )
                   .toList(),
               onChanged: (val) => setState(() => _selectedContract = val),

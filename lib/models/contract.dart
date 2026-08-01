@@ -19,6 +19,14 @@ class Contract {
     this.endDate,
   });
 
+  /// Restituisce una rappresentazione stringa completa del contratto (es. "Azienda (N. Contratto)" o solo "Azienda").
+  String get displayName {
+    if (contractNumber != null && contractNumber!.trim().isNotEmpty) {
+      return '$companyName (${contractNumber!.trim()})';
+    }
+    return companyName;
+  }
+
   factory Contract.fromJson(Map<String, dynamic> json) {
     return Contract(
       id: json['id'] as String?,
