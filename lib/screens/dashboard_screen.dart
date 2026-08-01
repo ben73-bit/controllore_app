@@ -253,10 +253,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(width: 4),
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-              child: Icon(Icons.person, color: colorScheme.primary, size: 18),
+            PopupMenuButton<String>(
+              icon: CircleAvatar(
+                radius: 18,
+                backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                child: Icon(Icons.person, color: colorScheme.primary, size: 18),
+              ),
+              tooltip: 'Account',
+              onSelected: (value) async {
+                if (value == 'logout') {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Conferma Logout'),
+                      content: const Text('Vuoi veramente uscire dall\'applicazione?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Annulla'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Esci', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await _supabaseService.signOut();
+                  }
+                }
+              },
+              itemBuilder: (ctx) {
+                final userEmail = _supabaseService.currentUser?.email ?? 'Utente';
+                return [
+                  PopupMenuItem<String>(
+                    enabled: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Connesso come:',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          userEmail,
+                          style: textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Divider(),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Colors.red, size: 20),
+                        SizedBox(width: 8),
+                        Text('Esci', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ];
+              },
             ),
           ],
         ),

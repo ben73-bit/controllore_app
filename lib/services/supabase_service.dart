@@ -6,6 +6,36 @@ import '../models/lesson.dart';
 class SupabaseService {
   final SupabaseClient _client = Supabase.instance.client;
 
+  // --- Auth ---
+
+  User? get currentUser => _client.auth.currentUser;
+  Session? get currentSession => _client.auth.currentSession;
+  Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
+
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signUp(
+      email: email,
+      password: password,
+    );
+  }
+
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+  }
+
   // --- Contratti ---
 
   Future<List<Contract>> getContracts() async {
