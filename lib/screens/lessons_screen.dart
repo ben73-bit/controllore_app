@@ -363,158 +363,172 @@ class _LessonsScreenState extends State<LessonsScreen> {
         _selectedMonth!.year == now.year &&
         _selectedMonth!.month == now.month;
 
+    final hasActiveFilters = _selectedContract != null || _selectedMonth != null;
+
     return Container(
       color: colorScheme.surface,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---- Filtro Contratto ----
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // Chip "Tutti"
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: const Text('Tutti i contratti'),
-                    selected: _selectedContract == null,
-                    onSelected: (_) {
-                      setState(() => _selectedContract = null);
-                      _applyFilters();
-                    },
-                    showCheckmark: false,
-                    selectedColor: colorScheme.primary.withValues(alpha: 0.15),
-                    labelStyle: TextStyle(
-                      color: _selectedContract == null
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
-                      fontWeight: _selectedContract == null
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-                // Chip per ogni contratto
-                ..._contracts.map(
-                  (c) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(
-                        c.contractNumber != null && c.contractNumber!.isNotEmpty
-                            ? '${c.companyName} · ${c.contractNumber}'
-                            : c.companyName,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      selected: _selectedContract?.id == c.id,
-                      onSelected: (_) {
-                        setState(
-                          () => _selectedContract =
-                              _selectedContract?.id == c.id ? null : c,
-                        );
-                        _applyFilters();
-                      },
-                      showCheckmark: false,
-                      selectedColor: colorScheme.primary.withValues(
-                        alpha: 0.15,
-                      ),
-                      labelStyle: TextStyle(
-                        color: _selectedContract?.id == c.id
-                            ? colorScheme.primary
-                            : colorScheme.onSurface,
-                        fontWeight: _selectedContract?.id == c.id
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+          // ---- Menù a tendina Contratti ----
+          DropdownButtonFormField<String?>(
+            initialValue: _selectedContract?.id,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Contratto',
+              hintText: 'Seleziona un contratto',
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              prefixIcon: const Icon(Icons.assignment_outlined, size: 20),
             ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // ---- Filtro Mese ----
-          Row(
-            children: [
-              // Toggle "Tutti i mesi"
-              GestureDetector(
-                onTap: () {
-                  setState(
-                    () => _selectedMonth = _selectedMonth == null
-                        ? DateTime(now.year, now.month, 1)
-                        : null,
-                  );
-                  _applyFilters();
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _selectedMonth == null
-                        ? colorScheme.primary
-                        : colorScheme.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Tutti i contratti',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              ..._contracts.map(
+                (c) => DropdownMenuItem<String?>(
+                  value: c.id,
                   child: Text(
-                    'Tutti i mesi',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: _selectedMonth == null
-                          ? colorScheme.onPrimary
-                          : colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    c.displayName,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Navigazione mese
-              if (_selectedMonth != null) ...[
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _prevMonth,
-                  visualDensity: VisualDensity.compact,
-                  iconSize: 20,
-                ),
-                GestureDetector(
-                  onTap: !isCurrentMonth
-                      ? () {
+            ],
+            onChanged: (selectedId) {
+              setState(() {
+                if (selectedId == null) {
+                  _selectedContract = null;
+                } else {
+                  _selectedContract = _contracts.firstWhere(
+                    (c) => c.id == selectedId,
+                    orElse: () => _contracts.first,
+                  );
+                }
+              });
+              _applyFilters();
+            },
+          ),
+
+          const SizedBox(height: 12),
+
+          // ---- Filtro Mese & Reset Filtri ----
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Selettore Mese
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // Toggle "Tutti i mesi"
+                      GestureDetector(
+                        onTap: () {
                           setState(
-                            () => _selectedMonth = DateTime(
-                              now.year,
-                              now.month,
-                              1,
-                            ),
+                            () => _selectedMonth = _selectedMonth == null
+                                ? DateTime(now.year, now.month, 1)
+                                : null,
                           );
                           _applyFilters();
-                        }
-                      : null,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      DateFormat('MMMM yyyy', 'it_IT').format(_selectedMonth!),
-                      key: ValueKey(_selectedMonth.toString()),
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _selectedMonth == null
+                                ? colorScheme.primary
+                                : colorScheme.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Tutti i mesi',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: _selectedMonth == null
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      // Navigazione mese
+                      if (_selectedMonth != null) ...[
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: _prevMonth,
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 20,
+                        ),
+                        GestureDetector(
+                          onTap: !isCurrentMonth
+                              ? () {
+                                  setState(
+                                    () => _selectedMonth = DateTime(
+                                      now.year,
+                                      now.month,
+                                      1,
+                                    ),
+                                  );
+                                  _applyFilters();
+                                }
+                              : null,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Text(
+                              DateFormat('MMMM yyyy', 'it_IT')
+                                  .format(_selectedMonth!),
+                              key: ValueKey(_selectedMonth.toString()),
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: isCurrentMonth ? null : _nextMonth,
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 20,
+                          color: isCurrentMonth
+                              ? colorScheme.onSurface.withValues(alpha: 0.2)
+                              : colorScheme.onSurface,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: isCurrentMonth ? null : _nextMonth,
-                  visualDensity: VisualDensity.compact,
-                  iconSize: 20,
-                  color: isCurrentMonth
-                      ? colorScheme.onSurface.withValues(alpha: 0.2)
-                      : colorScheme.onSurface,
+              ),
+
+              // Pulsante Reset Filtri se presenti filtri attivi
+              if (hasActiveFilters)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedContract = null;
+                      _selectedMonth = null;
+                    });
+                    _applyFilters();
+                  },
+                  icon: const Icon(Icons.filter_alt_off, size: 16),
+                  label: const Text('Resetta filtri', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: colorScheme.error,
+                  ),
                 ),
-              ],
             ],
           ),
         ],
