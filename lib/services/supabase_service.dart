@@ -5,6 +5,7 @@ import '../models/lesson.dart';
 
 class SupabaseService {
   final SupabaseClient _client = Supabase.instance.client;
+  static const Duration _timeout = Duration(seconds: 10);
 
   // --- Auth ---
 
@@ -26,10 +27,7 @@ class SupabaseService {
     required String email,
     required String password,
   }) async {
-    return await _client.auth.signUp(
-      email: email,
-      password: password,
-    );
+    return await _client.auth.signUp(email: email, password: password);
   }
 
   Future<void> signOut() async {
@@ -101,15 +99,11 @@ class SupabaseService {
   }
 
   /// Inserisce una lista di lezioni in blocco.
-  /// L'UUID viene generato client-side per evitare problemi con il DEFAULT del DB.
   Future<void> insertLessons(List<Lesson> lessons) async {
     if (lessons.isEmpty) return;
 
     final uuid = const Uuid();
-
     final items = lessons.map((l) {
-      // Costruiamo la mappa manualmente escludendo campi nulli non necessari.
-      // L'id viene sempre generato qui, UUID v4, valido per PostgreSQL uuid.
       final map = <String, dynamic>{
         'id': uuid.v4(),
         'start_date_time': l.startDateTime.toUtc().toIso8601String(),
@@ -138,12 +132,55 @@ class SupabaseService {
     await _client.from('lessons').delete().eq('id', lessonId);
   }
 
-  /// Segna le lezioni selezionate come fatturate con un numero fattura e data.
+  /// Elimina una lista di lezioni in blocco (Batch Delete).
+  Future<void> deleteLessonsBatch(List<String> lessonIds) async {
+    if (lessonIds.isEmpty) return;
+    await _client.from('lessons').delete().inFilter('id', lessonIds);
+  }
+
+  /// Assegna un contratto ad una lista di lezioni ricalcolando l'importo.
+  /// Esegue un'unica chiamata al database (Batch Update tramite Upsert).
+  Future<void> assignContractToLessons({
+    required List<Lesson> lessons,
+    required Contract contract,
+  }) async {
+    if (lessons.isEmpty) return;
+
+    final updates = lessons.map((l) {
+      double? amount;
+      final parts = l.duration.split(':');
+      if (parts.length >= 2) {
+        final hours =
+            (int.tryParse(parts[0]) ?? 0) +
+            (int.tryParse(parts[1]) ?? 0) / 60.0;
+        amount = hours * contract.hourlyRate;
+      }
+
+      // Creiamo il JSON aggiornato partendo dalla lezione esistente
+      final json = l.toJson();
+      json['contract_id'] = contract.id;
+      json['amount'] = amount;
+
+      // Assicuriamoci che le date siano in formato stringa ISO per PostgreSQL
+      json['start_date_time'] = l.startDateTime.toUtc().toIso8601String();
+      if (l.invoiceDate != null) {
+        json['invoice_date'] = l.invoiceDate!.toUtc().toIso8601String();
+      }
+
+      return json;
+    }).toList();
+
+    // Upsert aggiorna i record se l'ID è già presente
+    await _client.from('lessons').upsert(updates);
+  }
+
+  /// Segna le lezioni selezionate come fatturate (Batch Update).
   Future<void> markLessonsAsBilled({
     required List<String> lessonIds,
     required String invoiceNumber,
     required DateTime invoiceDate,
   }) async {
+    if (lessonIds.isEmpty) return;
     await _client
         .from('lessons')
         .update({
@@ -154,7 +191,6 @@ class SupabaseService {
         .inFilter('id', lessonIds);
   }
 
-  /// Rimuove la marcatura di fatturazione da una lezione.
   Future<void> unmarkLessonBilling(String lessonId) async {
     await _client
         .from('lessons')
@@ -166,7 +202,6 @@ class SupabaseService {
         .eq('id', lessonId);
   }
 
-  /// Restituisce tutte le lezioni non ancora fatturate.
   Future<List<Lesson>> getUnbilledLessons() async {
     final response = await _client
         .from('lessons')
@@ -176,7 +211,6 @@ class SupabaseService {
     return (response as List).map((json) => Lesson.fromJson(json)).toList();
   }
 
-  /// Restituisce tutte le lezioni fatturate (ordinate per fattura e data).
   Future<List<Lesson>> getBilledLessons() async {
     final response = await _client
         .from('lessons')
@@ -187,14 +221,11 @@ class SupabaseService {
     return (response as List).map((json) => Lesson.fromJson(json)).toList();
   }
 
-  /// Lezioni filtrabili per contratto e/o intervallo date.
-  /// Usato dalla schermata Lista Lezioni.
   Future<List<Lesson>> getLessonsFiltered({
     String? contractId,
     DateTime? from,
     DateTime? to,
   }) async {
-    // Costruiamo la query partendo dal FilterBuilder (prima di order/limit)
     var query = _client.from('lessons').select();
 
     if (contractId != null) {
@@ -213,9 +244,6 @@ class SupabaseService {
 
   // --- Calcoli Statistici ---
 
-  static const Duration _timeout = Duration(seconds: 10);
-
-  /// Statistiche globali (tutto lo storico)
   Future<Map<String, dynamic>> getDashboardStats() async {
     final lessons = await _client
         .from('lessons')
@@ -224,7 +252,6 @@ class SupabaseService {
     return _aggregateLessons(lessons);
   }
 
-  /// Statistiche filtrate per mese/anno specifico
   Future<Map<String, dynamic>> getDashboardStatsByMonth(
     int year,
     int month,
