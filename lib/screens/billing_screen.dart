@@ -104,6 +104,34 @@ class _BillingScreenState extends State<BillingScreen>
     return (int.tryParse(parts[0]) ?? 0) + (int.tryParse(parts[1]) ?? 0) / 60.0;
   }
 
+  Future<void> _toggleInvoicePaymentStatus(
+      List<Lesson> lessons, bool isCurrentlyPaid) async {
+    final lessonIds = lessons.map((l) => l.id).toList();
+    final newStatus = !isCurrentlyPaid;
+
+    try {
+      await _service.markInvoicePaymentStatus(
+        lessonIds: lessonIds,
+        isPaid: newStatus,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newStatus
+                  ? 'Fattura segnata come PAGATA!'
+                  : 'Fattura ripristinata come DA PAGARE.',
+            ),
+            backgroundColor: newStatus ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+      _loadBilled();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
   // ------------------------------------------------------------------
   // Creazione fattura
   // ------------------------------------------------------------------
@@ -572,13 +600,19 @@ class _BillingScreenState extends State<BillingScreen>
           final totalHours = lessons.fold(0.0, (s, l) => s + _lessonHours(l));
           final invoiceDate = lessons.first.invoiceDate;
 
+          final isPaid = lessons.isNotEmpty && lessons.every((l) => l.isPaid == true);
+
           return Container(
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: Colors.green.withValues(alpha: 0.2)),
+                color: isPaid
+                    ? Colors.green.withValues(alpha: 0.3)
+                    : Colors.amber.withValues(alpha: 0.4),
+                width: isPaid ? 1.5 : 1,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.03),
@@ -593,58 +627,157 @@ class _BillingScreenState extends State<BillingScreen>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.06),
+                    color: isPaid
+                        ? Colors.green.withValues(alpha: 0.08)
+                        : Colors.amber.withValues(alpha: 0.06),
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(20)),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.receipt_long,
-                            color: Colors.green.shade700, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Fattura N° $invoiceNum',
-                              style: textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isPaid
+                                  ? Colors.green.withValues(alpha: 0.18)
+                                  : Colors.amber.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            if (invoiceDate != null)
+                            child: Icon(
+                              isPaid ? Icons.check_circle : Icons.receipt_long,
+                              color: isPaid
+                                  ? Colors.green.shade700
+                                  : Colors.amber.shade900,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Fattura N° $invoiceNum',
+                                  style: textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (invoiceDate != null)
+                                  Text(
+                                    dateFormat.format(invoiceDate),
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
                               Text(
-                                dateFormat.format(invoiceDate),
-                                style: textTheme.bodySmall?.copyWith(
+                                currency.format(totalAmount),
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isPaid
+                                      ? Colors.green.shade700
+                                      : colorScheme.primary,
+                                ),
+                              ),
+                              Text(
+                                '${totalHours.toStringAsFixed(1)} h · ${lessons.length} lezioni',
+                                style: textTheme.labelSmall?.copyWith(
                                   color: colorScheme.onSurface
                                       .withValues(alpha: 0.5),
                                 ),
                               ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 10),
+                      // Barra stato pagamento ed azione
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            currency.format(totalAmount),
-                            style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isPaid
+                                  ? Colors.green.shade100
+                                  : Colors.amber.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isPaid
+                                    ? Colors.green.shade400
+                                    : Colors.amber.shade400,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isPaid
+                                      ? Icons.check_circle_rounded
+                                      : Icons.hourglass_empty_rounded,
+                                  size: 14,
+                                  color: isPaid
+                                      ? Colors.green.shade800
+                                      : Colors.amber.shade900,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isPaid ? 'PAGATA' : 'DA PAGARE',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isPaid
+                                        ? Colors.green.shade900
+                                        : Colors.amber.shade900,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Text(
-                            '${totalHours.toStringAsFixed(1)} h · ${lessons.length} lezioni',
-                            style: textTheme.labelSmall?.copyWith(
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.5),
+                          InkWell(
+                            onTap: () =>
+                                _toggleInvoicePaymentStatus(lessons, isPaid),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isPaid
+                                        ? Icons.undo_rounded
+                                        : Icons.task_alt_rounded,
+                                    size: 16,
+                                    color: isPaid
+                                        ? Colors.grey.shade700
+                                        : Colors.green.shade700,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isPaid
+                                        ? 'Segna da pagare'
+                                        : 'Segna come Pagata',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isPaid
+                                          ? Colors.grey.shade800
+                                          : Colors.green.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],

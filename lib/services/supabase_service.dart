@@ -200,6 +200,35 @@ class SupabaseService {
           'invoice_date': null,
         })
         .eq('id', lessonId);
+
+    try {
+      await _client
+          .from('lessons')
+          .update({'is_paid': false})
+          .eq('id', lessonId);
+    } catch (_) {
+      // Ignora se la colonna is_paid non è ancora stata creata nel DB
+    }
+  }
+
+  /// Aggiorna lo stato di pagamento (Pagata / Non Pagata) per una fattura o lista di lezioni.
+  Future<void> markInvoicePaymentStatus({
+    required List<String> lessonIds,
+    required bool isPaid,
+  }) async {
+    if (lessonIds.isEmpty) return;
+
+    try {
+      await _client
+          .from('lessons')
+          .update({'is_paid': isPaid})
+          .inFilter('id', lessonIds);
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST204' || e.message.contains('is_paid')) {
+        throw 'La colonna "is_paid" non esiste ancora nella tabella "lessons" di Supabase.\n\nEsegui questo comando nell\'Editor SQL di Supabase:\nALTER TABLE lessons ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT FALSE;';
+      }
+      rethrow;
+    }
   }
 
   Future<List<Lesson>> getUnbilledLessons() async {

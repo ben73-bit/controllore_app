@@ -11,6 +11,7 @@ class Lesson {
   final String? invoiceNumber;
   final DateTime? invoiceDate;
   final double? amount;
+  final bool isPaid;
 
   Lesson({
     required this.id,
@@ -25,22 +26,32 @@ class Lesson {
     this.invoiceNumber,
     this.invoiceDate,
     this.amount,
+    this.isPaid = false,
   });
 
   factory Lesson.fromJson(Map<String, dynamic> json) {
+    final rawIsPaid = json['is_paid'] ?? json['IsPaid'];
+    final rawIsBilled = json['is_billed'] ?? json['IsBilled'];
+    final rawIsConfirmed = json['is_confirmed'] ?? json['IsConfirmed'];
+
     return Lesson(
-      id: json['id'] ?? json['Uid'],
-      contractId: json['contract_id'],
+      id: (json['id'] ?? json['Uid'] ?? '').toString(),
+      contractId: json['contract_id'] as String?,
       startDateTime: DateTime.parse(json['start_date_time'] ?? json['StartDateTime']),
-      duration: json['duration'] ?? json['Duration'],
-      isConfirmed: json['is_confirmed'] ?? json['IsConfirmed'] ?? false,
-      summary: json['summary'] ?? json['Summary'],
-      description: json['description'] ?? json['Description'],
-      location: json['location'] ?? json['Location'],
-      isBilled: json['is_billed'] ?? json['IsBilled'] ?? false,
-      invoiceNumber: json['invoice_number'] ?? json['InvoiceNumber'],
-      invoiceDate: (json['invoice_date'] ?? json['InvoiceDate']) != null ? DateTime.parse(json['invoice_date'] ?? json['InvoiceDate']) : null,
-      amount: (json['amount'] ?? json['Amount']) != null ? (json['amount'] ?? json['Amount'] as num).toDouble() : null,
+      duration: (json['duration'] ?? json['Duration'] ?? '00:00').toString(),
+      isConfirmed: rawIsConfirmed == true,
+      summary: (json['summary'] ?? json['Summary']) as String?,
+      description: (json['description'] ?? json['Description']) as String?,
+      location: (json['location'] ?? json['Location']) as String?,
+      isBilled: rawIsBilled == true,
+      invoiceNumber: (json['invoice_number'] ?? json['InvoiceNumber']) as String?,
+      invoiceDate: (json['invoice_date'] ?? json['InvoiceDate']) != null
+          ? DateTime.parse((json['invoice_date'] ?? json['InvoiceDate']).toString())
+          : null,
+      amount: (json['amount'] ?? json['Amount']) != null
+          ? ((json['amount'] ?? json['Amount']) as num).toDouble()
+          : null,
+      isPaid: rawIsPaid == true,
     );
   }
 
@@ -60,6 +71,7 @@ class Lesson {
       'invoice_number': invoiceNumber,
       if (invoiceDate != null) 'invoice_date': invoiceDate!.toIso8601String(),
       if (amount != null) 'amount': amount,
+      if (isPaid) 'is_paid': isPaid,
     };
   }
 }
