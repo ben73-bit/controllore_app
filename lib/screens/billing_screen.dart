@@ -26,6 +26,9 @@ class _BillingScreenState extends State<BillingScreen>
   List<Lesson> _billed = [];
   bool _loadingBilled = true;
 
+  // Traccia le fatture espanse (per chiave = numero fattura)
+  final Set<String> _expandedInvoices = {};
+
   final currency = NumberFormat.simpleCurrency(locale: 'it_IT');
   final dateFormat = DateFormat('dd/MM/yyyy', 'it_IT');
 
@@ -599,97 +602,183 @@ class _BillingScreenState extends State<BillingScreen>
           final totalAmount = lessons.fold(0.0, (s, l) => s + (l.amount ?? 0));
           final totalHours = lessons.fold(0.0, (s, l) => s + _lessonHours(l));
           final invoiceDate = lessons.first.invoiceDate;
-
           final isPaid = lessons.isNotEmpty && lessons.every((l) => l.isPaid == true);
+          final isExpanded = _expandedInvoices.contains(invoiceNum);
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isPaid
-                    ? Colors.green.withValues(alpha: 0.3)
-                    : Colors.amber.withValues(alpha: 0.4),
-                width: isPaid ? 1.5 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          return _InvoiceCard(
+            key: ValueKey(invoiceNum),
+            invoiceNum: invoiceNum,
+            lessons: lessons,
+            totalAmount: totalAmount,
+            totalHours: totalHours,
+            invoiceDate: invoiceDate,
+            isPaid: isPaid,
+            isExpanded: isExpanded,
+            currency: currency,
+            dateFormat: dateFormat,
+            textTheme: textTheme,
+            colorScheme: colorScheme,
+            onToggleExpand: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedInvoices.remove(invoiceNum);
+                } else {
+                  _expandedInvoices.add(invoiceNum);
+                }
+              });
+            },
+            onTogglePayment: () =>
+                _toggleInvoicePaymentStatus(lessons, isPaid),
+            onUnmarkLesson: _unmarkLesson,
+            contractName: _contractName,
+            lessonHours: _lessonHours,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Widget separato per la card fattura con animazione di espansione
+// ---------------------------------------------------------------------------
+
+class _InvoiceCard extends StatelessWidget {
+  const _InvoiceCard({
+    super.key,
+    required this.invoiceNum,
+    required this.lessons,
+    required this.totalAmount,
+    required this.totalHours,
+    required this.invoiceDate,
+    required this.isPaid,
+    required this.isExpanded,
+    required this.currency,
+    required this.dateFormat,
+    required this.textTheme,
+    required this.colorScheme,
+    required this.onToggleExpand,
+    required this.onTogglePayment,
+    required this.onUnmarkLesson,
+    required this.contractName,
+    required this.lessonHours,
+  });
+
+  final String invoiceNum;
+  final List<Lesson> lessons;
+  final double totalAmount;
+  final double totalHours;
+  final DateTime? invoiceDate;
+  final bool isPaid;
+  final bool isExpanded;
+  final NumberFormat currency;
+  final DateFormat dateFormat;
+  final TextTheme textTheme;
+  final ColorScheme colorScheme;
+  final VoidCallback onToggleExpand;
+  final VoidCallback onTogglePayment;
+  final void Function(Lesson) onUnmarkLesson;
+  final String Function(String?) contractName;
+  final double Function(Lesson) lessonHours;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPaid
+              ? Colors.green.withValues(alpha: 0.35)
+              : Colors.amber.withValues(alpha: 0.45),
+          width: isPaid ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Riga compatta (sempre visibile) ──────────────────────────
+            InkWell(
+              onTap: onToggleExpand,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isPaid
+                      ? Colors.green.withValues(alpha: 0.07)
+                      : Colors.amber.withValues(alpha: 0.05),
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Header fattura
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isPaid
-                        ? Colors.green.withValues(alpha: 0.08)
-                        : Colors.amber.withValues(alpha: 0.06),
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
+                child: Row(
+                  children: [
+                    // Icona stato
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isPaid
+                            ? Colors.green.withValues(alpha: 0.16)
+                            : Colors.amber.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        isPaid ? Icons.check_circle : Icons.receipt_long,
+                        color: isPaid
+                            ? Colors.green.shade700
+                            : Colors.amber.shade800,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Numero e data
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isPaid
-                                  ? Colors.green.withValues(alpha: 0.18)
-                                  : Colors.amber.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              isPaid ? Icons.check_circle : Icons.receipt_long,
-                              color: isPaid
-                                  ? Colors.green.shade700
-                                  : Colors.amber.shade900,
-                              size: 20,
+                          Text(
+                            'Fattura N° $invoiceNum',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Fattura N° $invoiceNum',
-                                  style: textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                if (invoiceDate != null)
-                                  Text(
-                                    dateFormat.format(invoiceDate),
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurface
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          const SizedBox(height: 2),
+                          Row(
                             children: [
-                              Text(
-                                currency.format(totalAmount),
-                                style: textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isPaid
-                                      ? Colors.green.shade700
-                                      : colorScheme.primary,
+                              if (invoiceDate != null) ...[
+                                Icon(Icons.calendar_today_rounded,
+                                    size: 11,
+                                    color: colorScheme.onSurface
+                                        .withValues(alpha: 0.4)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  dateFormat.format(invoiceDate!),
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                              ],
+                              Icon(Icons.school_rounded,
+                                  size: 11,
+                                  color: colorScheme.onSurface
+                                      .withValues(alpha: 0.4)),
+                              const SizedBox(width: 3),
                               Text(
-                                '${totalHours.toStringAsFixed(1)} h · ${lessons.length} lezioni',
-                                style: textTheme.labelSmall?.copyWith(
+                                '${lessons.length} lez · ${totalHours.toStringAsFixed(1)} h',
+                                style: textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurface
                                       .withValues(alpha: 0.5),
                                 ),
@@ -698,173 +787,228 @@ class _BillingScreenState extends State<BillingScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 10),
-                      // Barra stato pagamento ed azione
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
+                    ),
+
+                    // Importo + badge pagamento
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          currency.format(totalAmount),
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isPaid
+                                ? Colors.green.shade700
+                                : colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isPaid
+                                ? Colors.green.shade100
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
                               color: isPaid
-                                  ? Colors.green.shade100
-                                  : Colors.amber.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isPaid
-                                    ? Colors.green.shade400
-                                    : Colors.amber.shade400,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isPaid
-                                      ? Icons.check_circle_rounded
-                                      : Icons.hourglass_empty_rounded,
-                                  size: 14,
-                                  color: isPaid
-                                      ? Colors.green.shade800
-                                      : Colors.amber.shade900,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  isPaid ? 'PAGATA' : 'DA PAGARE',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: isPaid
-                                        ? Colors.green.shade900
-                                        : Colors.amber.shade900,
-                                  ),
-                                ),
-                              ],
+                                  ? Colors.green.shade400
+                                  : Colors.amber.shade400,
+                              width: 0.8,
                             ),
                           ),
-                          InkWell(
-                            onTap: () =>
-                                _toggleInvoicePaymentStatus(lessons, isPaid),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isPaid
-                                        ? Icons.undo_rounded
-                                        : Icons.task_alt_rounded,
-                                    size: 16,
+                          child: Text(
+                            isPaid ? 'PAGATA' : 'DA PAGARE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isPaid
+                                  ? Colors.green.shade800
+                                  : Colors.amber.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    // Freccia expand/collapse
+                    AnimatedRotation(
+                      duration: const Duration(milliseconds: 250),
+                      turns: isExpanded ? 0.5 : 0.0,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color:
+                            colorScheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Pannello espanso (dettagli + azioni) ─────────────────────
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOut,
+              child: isExpanded
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Divider(
+                            height: 1,
+                            color: colorScheme.outline.withValues(alpha: 0.15)),
+
+                        // Azione pagamento
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              InkWell(
+                                onTap: onTogglePayment,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
                                     color: isPaid
-                                        ? Colors.grey.shade700
-                                        : Colors.green.shade700,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isPaid
-                                        ? 'Segna da pagare'
-                                        : 'Segna come Pagata',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                                        ? Colors.grey.withValues(alpha: 0.1)
+                                        : Colors.green.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
                                       color: isPaid
-                                          ? Colors.grey.shade800
-                                          : Colors.green.shade700,
+                                          ? Colors.grey.shade400
+                                          : Colors.green.shade400,
+                                      width: 0.8,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Lista lezioni della fattura
-                ...lessons.asMap().entries.map((e) {
-                  final lesson = e.value;
-                  final isLast = e.key == lessons.length - 1;
-                  return Column(
-                    children: [
-                      Divider(
-                          height: 1,
-                          color: colorScheme.outline.withValues(alpha: 0.1)),
-                      ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              lesson.startDateTime.day.toString(),
-                              style: textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          lesson.summary ?? 'Lezione',
-                          style: textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          _contractName(lesson.contractId),
-                          style: textTheme.bodySmall?.copyWith(
-                            color:
-                                colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (lesson.amount != null)
-                              Text(
-                                currency.format(lesson.amount),
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: Colors.green.shade600,
-                                  fontWeight: FontWeight.bold,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isPaid
+                                            ? Icons.undo_rounded
+                                            : Icons.task_alt_rounded,
+                                        size: 15,
+                                        color: isPaid
+                                            ? Colors.grey.shade700
+                                            : Colors.green.shade700,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isPaid
+                                            ? 'Segna da pagare'
+                                            : 'Segna come Pagata',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isPaid
+                                              ? Colors.grey.shade800
+                                              : Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            const SizedBox(width: 4),
-                            // Tasto per annullare la fatturazione
-                            IconButton(
-                              icon: Icon(Icons.undo,
-                                  size: 18,
-                                  color: colorScheme.onSurface
-                                      .withValues(alpha: 0.3)),
-                              tooltip: 'Rimuovi da fattura',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () => _unmarkLesson(lesson),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      if (isLast)
-                        const SizedBox(height: 4),
-                    ],
-                  );
-                }),
-              ],
+
+                        Divider(
+                            height: 1,
+                            color: colorScheme.outline.withValues(alpha: 0.12)),
+
+                        // Lista lezioni
+                        ...lessons.asMap().entries.map((e) {
+                          final lesson = e.value;
+                          final isLast = e.key == lessons.length - 1;
+                          return Column(
+                            children: [
+                              ListTile(
+                                contentPadding:
+                                    const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 2),
+                                leading: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      lesson.startDateTime.day.toString(),
+                                      style: textTheme.labelMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  lesson.summary ?? 'Lezione',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  contractName(lesson.contractId),
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (lesson.amount != null)
+                                      Text(
+                                        currency.format(lesson.amount),
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: Colors.green.shade600,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      icon: Icon(Icons.undo,
+                                          size: 18,
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.3)),
+                                      tooltip: 'Rimuovi da fattura',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () =>
+                                          onUnmarkLesson(lesson),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (!isLast)
+                                Divider(
+                                    height: 1,
+                                    indent: 68,
+                                    color: colorScheme.outline
+                                        .withValues(alpha: 0.08)),
+                            ],
+                          );
+                        }),
+
+                        const SizedBox(height: 6),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
