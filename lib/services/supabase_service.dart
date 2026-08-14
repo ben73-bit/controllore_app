@@ -45,9 +45,12 @@ class SupabaseService {
   }
 
   Future<Contract> insertContract(Contract contract) async {
+    final uid = _client.auth.currentUser?.id;
+    final json = contract.toJson();
+    if (uid != null) json['user_id'] = uid;
     final response = await _client
         .from('contracts')
-        .insert(contract.toJson())
+        .insert(json)
         .select()
         .single();
     return Contract.fromJson(response);
@@ -86,9 +89,12 @@ class SupabaseService {
   }
 
   Future<Lesson> insertLesson(Lesson lesson) async {
+    final uid = _client.auth.currentUser?.id;
+    final json = lesson.toJson();
+    if (uid != null) json['user_id'] = uid;
     final response = await _client
         .from('lessons')
-        .insert(lesson.toJson())
+        .insert(json)
         .select()
         .single();
     return Lesson.fromJson(response);
@@ -102,6 +108,7 @@ class SupabaseService {
   Future<void> insertLessons(List<Lesson> lessons) async {
     if (lessons.isEmpty) return;
 
+    final uid = _client.auth.currentUser?.id;
     final uuid = const Uuid();
     final items = lessons.map((l) {
       final map = <String, dynamic>{
@@ -111,6 +118,7 @@ class SupabaseService {
         'is_confirmed': l.isConfirmed,
         'is_billed': l.isBilled,
       };
+      if (uid != null) map['user_id'] = uid;
       if (l.contractId != null && l.contractId!.isNotEmpty) {
         map['contract_id'] = l.contractId;
       }
@@ -146,6 +154,7 @@ class SupabaseService {
   }) async {
     if (lessons.isEmpty) return;
 
+    final uid = _client.auth.currentUser?.id;
     final updates = lessons.map((l) {
       double? amount;
       final parts = l.duration.split(':');
@@ -160,6 +169,7 @@ class SupabaseService {
       final json = l.toJson();
       json['contract_id'] = contract.id;
       json['amount'] = amount;
+      if (uid != null) json['user_id'] = uid;
 
       // Assicuriamoci che le date siano in formato stringa ISO per PostgreSQL
       json['start_date_time'] = l.startDateTime.toUtc().toIso8601String();
