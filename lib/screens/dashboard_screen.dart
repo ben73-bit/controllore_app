@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/supabase_service.dart';
+import '../services/migration_service.dart';
 import '../models/lesson.dart';
 import '../theme/app_theme.dart';
 import 'add_lesson_screen.dart';
@@ -17,6 +20,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final SupabaseService _supabaseService = SupabaseService();
+  final MigrationService _migrationService = MigrationService();
 
   bool _isLoading = true;
   double _totaleOre = 0.0;
@@ -116,12 +120,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadData();
   }
 
+  Future<void> _importDesktopData() async {
+    try {
+      // 1. Selezione del file tramite FilePicker
+      final platformFile = await _migrationService.pickJsonFile();
+
+      if (platformFile == null) {
+        // Selezione annullata dall'utente
+        return;
+      }
+
+      if (!mounted) return;
+
+      // 2. Mostra dialog di caricamento con indicatore di progresso
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Importazione in corso...',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Caricamento dati su Supabase',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      String jsonString;
+      if (platformFile.bytes != null) {
+        jsonString = utf8.decode(platformFile.bytes!);
+      } else if (platformFile.path != null) {
+        final f = File(platformFile.path!);
+        jsonString = await f.readAsString();
+      } else {
+        throw Exception('Impossibile leggere il file selezionato.');
+      }
+
+      final result = await _migrationService.importFromJsonString(
+        jsonString: jsonString,
+        fileName: platformFile.name,
+      );
+
+      // Chiudi il dialog di caricamento
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Importazione completata!\n${result.contractsCount} contratti e ${result.lessonsCount} lezioni caricati da "${result.fileName}".',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      // Chiudi il dialog di caricamento se ancora visibile
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore durante l\'importazione: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Conferma Logout'),
+        content: const Text('Vuoi veramente uscire dall\'applicazione?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Esci', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _supabaseService.signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
+      drawer: _buildDrawer(textTheme, colorScheme),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -176,10 +315,134 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildDrawer(TextTheme textTheme, ColorScheme colorScheme) {
+    final userEmail = _supabaseService.currentUser?.email ?? 'Utente';
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Drawer Header con info utente
+            UserAccountsDrawerHeader(
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+              ),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: colorScheme.primary,
+                child: Icon(Icons.person, color: colorScheme.onPrimary, size: 36),
+              ),
+              accountName: Text(
+                'ControllOre',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+              accountEmail: Text(
+                userEmail,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
+
+            // Navigazione sezioni
+            ListTile(
+              leading: Icon(Icons.dashboard_outlined, color: colorScheme.primary),
+              title: const Text('Dashboard'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: Icon(Icons.list_alt_rounded, color: colorScheme.primary),
+              title: const Text('Le Mie Lezioni'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LessonsScreen()),
+                ).then((_) => _loadData());
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.assignment_outlined, color: colorScheme.primary),
+              title: const Text('I Miei Contratti'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContractsScreen(),
+                  ),
+                ).then((_) => _loadData());
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.receipt_long_outlined, color: colorScheme.primary),
+              title: const Text('Fatturazione'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BillingScreen()),
+                ).then((_) => _loadData());
+              },
+            ),
+
+            const Divider(),
+
+            // Voce Importa dati Desktop
+            ListTile(
+              leading: Icon(Icons.file_upload_outlined, color: Colors.blue.shade700),
+              title: Text(
+                'Importa dati Desktop',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade800,
+                ),
+              ),
+              subtitle: const Text('Importa file JSON da versione desktop'),
+              onTap: () {
+                Navigator.pop(context);
+                _importDesktopData();
+              },
+            ),
+
+            const Spacer(),
+            const Divider(),
+
+            // Logout
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Esci', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmLogout();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(TextTheme textTheme, ColorScheme colorScheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // Hamburger Menu per aprire il Drawer
+        Builder(
+          builder: (ctx) => IconButton(
+            icon: Icon(Icons.menu_rounded, color: colorScheme.primary, size: 24),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+            tooltip: 'Menu',
+            style: IconButton.styleFrom(
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+              padding: const EdgeInsets.all(8),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,13 +453,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Dashboard',
-                  style: textTheme.displayLarge?.copyWith(fontSize: 28),
+                  style: textTheme.displayLarge?.copyWith(fontSize: 26),
                 ),
               ),
             ],
@@ -261,28 +524,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               tooltip: 'Account',
               onSelected: (value) async {
-                if (value == 'logout') {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Conferma Logout'),
-                      content: const Text('Vuoi veramente uscire dall\'applicazione?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Annulla'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Esci', style: TextStyle(color: Colors.red)),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm == true) {
-                    await _supabaseService.signOut();
-                  }
+                if (value == 'import') {
+                  _importDesktopData();
+                } else if (value == 'logout') {
+                  _confirmLogout();
                 }
               },
               itemBuilder: (ctx) {
@@ -307,6 +552,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const Divider(),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'import',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_upload_outlined, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Text('Importa dati Desktop'),
                       ],
                     ),
                   ),
