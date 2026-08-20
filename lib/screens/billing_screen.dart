@@ -26,11 +26,101 @@ class _BillingScreenState extends State<BillingScreen>
   List<Lesson> _billed = [];
   bool _loadingBilled = true;
 
+  // Filtri Tab "Da Fatturare"
+  Contract? _unbilledSelectedContract;
+  DateTime? _unbilledSelectedMonth; // null = tutti i mesi
+
+  // Filtri Tab "Fatture"
+  Contract? _billedSelectedContract;
+  DateTime? _billedSelectedMonth; // null = tutti i mesi
+  String _billedPaymentFilter = 'ALL'; // 'ALL', 'PAID', 'UNPAID'
+
   // Traccia le fatture espanse (per chiave = numero fattura)
   final Set<String> _expandedInvoices = {};
 
   final currency = NumberFormat.simpleCurrency(locale: 'it_IT');
   final dateFormat = DateFormat('dd/MM/yyyy', 'it_IT');
+
+  List<Lesson> get _filteredUnbilled {
+    return _unbilled.where((l) {
+      if (_unbilledSelectedContract != null &&
+          l.contractId != _unbilledSelectedContract!.id) {
+        return false;
+      }
+      if (_unbilledSelectedMonth != null) {
+        final m = _unbilledSelectedMonth!;
+        if (l.startDateTime.year != m.year ||
+            l.startDateTime.month != m.month) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  Map<String, List<Lesson>> get _filteredGroupedBilled {
+    final Map<String, List<Lesson>> grouped = {};
+    for (final l in _billed) {
+      final key = l.invoiceNumber ?? '—';
+      grouped.putIfAbsent(key, () => []).add(l);
+    }
+
+    final Map<String, List<Lesson>> result = {};
+    for (final entry in grouped.entries) {
+      final lessons = entry.value;
+      final invoiceDate =
+          lessons.first.invoiceDate ?? lessons.first.startDateTime;
+      final isPaid =
+          lessons.isNotEmpty && lessons.every((l) => l.isPaid == true);
+
+      if (_billedSelectedContract != null) {
+        final hasContract =
+            lessons.any((l) => l.contractId == _billedSelectedContract!.id);
+        if (!hasContract) continue;
+      }
+
+      if (_billedSelectedMonth != null) {
+        final m = _billedSelectedMonth!;
+        if (invoiceDate.year != m.year || invoiceDate.month != m.month) {
+          continue;
+        }
+      }
+
+      if (_billedPaymentFilter == 'PAID' && !isPaid) continue;
+      if (_billedPaymentFilter == 'UNPAID' && isPaid) continue;
+
+      result[entry.key] = lessons;
+    }
+    return result;
+  }
+
+  void _prevUnbilledMonth() {
+    final m = _unbilledSelectedMonth ?? DateTime.now();
+    setState(() => _unbilledSelectedMonth = DateTime(m.year, m.month - 1, 1));
+  }
+
+  void _nextUnbilledMonth() {
+    if (_unbilledSelectedMonth == null) return;
+    final next =
+        DateTime(_unbilledSelectedMonth!.year, _unbilledSelectedMonth!.month + 1, 1);
+    final now = DateTime.now();
+    if (next.isAfter(DateTime(now.year, now.month, 1))) return;
+    setState(() => _unbilledSelectedMonth = next);
+  }
+
+  void _prevBilledMonth() {
+    final m = _billedSelectedMonth ?? DateTime.now();
+    setState(() => _billedSelectedMonth = DateTime(m.year, m.month - 1, 1));
+  }
+
+  void _nextBilledMonth() {
+    if (_billedSelectedMonth == null) return;
+    final next =
+        DateTime(_billedSelectedMonth!.year, _billedSelectedMonth!.month + 1, 1);
+    final now = DateTime.now();
+    if (next.isAfter(DateTime(now.year, now.month, 1))) return;
+    setState(() => _billedSelectedMonth = next);
+  }
 
   @override
   void initState() {
@@ -353,6 +443,119 @@ class _BillingScreenState extends State<BillingScreen>
   // Tab 1: Da Fatturare
   // ------------------------------------------------------------------
 
+  Widget _buildUnbilledFilterBar(ColorScheme colorScheme, TextTheme textTheme) {
+    final now = DateTime.now();
+    final isCurrentMonth = _unbilledSelectedMonth != null &&
+        _unbilledSelectedMonth!.year == now.year &&
+        _unbilledSelectedMonth!.month == now.month;
+    final hasActiveFilters =
+        _unbilledSelectedContract != null || _unbilledSelectedMonth != null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      color: colorScheme.surface,
+      child: Column(
+        children: [
+          DropdownButtonFormField<String?>(
+            key: ValueKey(_unbilledSelectedContract?.id),
+            initialValue: _unbilledSelectedContract?.id,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Filtra per Contratto',
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              prefixIcon: const Icon(Icons.assignment_outlined, size: 20),
+            ),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('Tutti i contratti'),
+              ),
+              ..._contracts.map(
+                (c) =>
+                    DropdownMenuItem(value: c.id, child: Text(c.displayName)),
+              ),
+            ],
+            onChanged: (id) {
+              setState(() {
+                _unbilledSelectedContract = id == null
+                    ? null
+                    : _contracts.firstWhere((c) => c.id == id);
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        selected: _unbilledSelectedMonth == null,
+                        label: const Text('Tutti i mesi'),
+                        onSelected: (_) {
+                          setState(() => _unbilledSelectedMonth = null);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      if (_unbilledSelectedMonth != null) ...[
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: _prevUnbilledMonth,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        Text(
+                          DateFormat('MMMM yyyy', 'it_IT')
+                              .format(_unbilledSelectedMonth!),
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: isCurrentMonth ? null : _nextUnbilledMonth,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ] else
+                        ActionChip(
+                          label: const Text('Scegli mese corrente'),
+                          onPressed: () {
+                            setState(
+                              () => _unbilledSelectedMonth =
+                                  DateTime(now.year, now.month, 1),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              if (hasActiveFilters)
+                IconButton(
+                  icon: const Icon(Icons.filter_alt_off),
+                  color: colorScheme.error,
+                  tooltip: 'Resetta filtri',
+                  onPressed: () {
+                    setState(() {
+                      _unbilledSelectedContract = null;
+                      _unbilledSelectedMonth = null;
+                    });
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUnbilledTab(ColorScheme colorScheme, TextTheme textTheme) {
     if (_loadingUnbilled) return const Center(child: CircularProgressIndicator());
     if (_unbilled.isEmpty) {
@@ -378,12 +581,17 @@ class _BillingScreenState extends State<BillingScreen>
       );
     }
 
-    // Header selezione
-    final allSelected = _selected.length == _unbilled.length;
+    final filteredList = _filteredUnbilled;
+    final allSelected = filteredList.isNotEmpty &&
+        filteredList.every((l) => _selected.contains(l.id));
 
     return Column(
       children: [
-        // Barra selezione globale
+        // Sezione filtri
+        _buildUnbilledFilterBar(colorScheme, textTheme),
+        const Divider(height: 1),
+
+        // Barra selezione globale per gli elementi filtrati
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           color: colorScheme.surface,
@@ -392,32 +600,32 @@ class _BillingScreenState extends State<BillingScreen>
               Checkbox(
                 value: allSelected
                     ? true
-                    : _selected.isEmpty
-                        ? false
-                        : null,
+                    : filteredList.any((l) => _selected.contains(l.id))
+                        ? null
+                        : false,
                 tristate: true,
-                onChanged: (_) {
-                  setState(() {
-                    if (allSelected) {
-                      _selected.clear();
-                    } else {
-                      _selected.addAll(_unbilled.map((l) => l.id));
-                    }
-                  });
-                },
+                onChanged: filteredList.isEmpty
+                    ? null
+                    : (_) {
+                        setState(() {
+                          if (allSelected) {
+                            _selected.removeAll(filteredList.map((l) => l.id));
+                          } else {
+                            _selected.addAll(filteredList.map((l) => l.id));
+                          }
+                        });
+                      },
               ),
               Text(
                 allSelected
                     ? 'Deseleziona tutto'
-                    : _selected.isEmpty
-                        ? 'Seleziona tutto'
-                        : '${_selected.length} di ${_unbilled.length} selezionate',
+                    : '${_selected.where((id) => filteredList.any((l) => l.id == id)).length} di ${filteredList.length} selezionate',
                 style: textTheme.bodyMedium,
               ),
               const Spacer(),
               if (_selected.isNotEmpty)
                 Text(
-                  currency.format(_unbilled
+                  currency.format(filteredList
                       .where((l) => _selected.contains(l.id))
                       .fold(0.0, (s, l) => s + (l.amount ?? 0))),
                   style: textTheme.titleSmall?.copyWith(
@@ -428,17 +636,53 @@ class _BillingScreenState extends State<BillingScreen>
             ],
           ),
         ),
+        const Divider(height: 1),
+
+        // Lista lezioni
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: _loadUnbilled,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-              itemCount: _unbilled.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (_, i) =>
-                  _buildUnbilledTile(_unbilled[i], colorScheme, textTheme),
-            ),
-          ),
+          child: filteredList.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.filter_list_off,
+                            size: 48,
+                            color: colorScheme.onSurface.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nessuna lezione corrisponde ai filtri selezionati.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.clear_all),
+                          label: const Text('Mostra tutte'),
+                          onPressed: () {
+                            setState(() {
+                              _unbilledSelectedContract = null;
+                              _unbilledSelectedMonth = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadUnbilled,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                    itemCount: filteredList.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) => _buildUnbilledTile(
+                        filteredList[i], colorScheme, textTheme),
+                  ),
+                ),
         ),
       ],
     );
@@ -559,6 +803,170 @@ class _BillingScreenState extends State<BillingScreen>
   // Tab 2: Fatture (raggruppate per numero fattura)
   // ------------------------------------------------------------------
 
+  Widget _buildBilledFilterBar(ColorScheme colorScheme, TextTheme textTheme) {
+    final now = DateTime.now();
+    final isCurrentMonth = _billedSelectedMonth != null &&
+        _billedSelectedMonth!.year == now.year &&
+        _billedSelectedMonth!.month == now.month;
+    final hasActiveFilters = _billedSelectedContract != null ||
+        _billedSelectedMonth != null ||
+        _billedPaymentFilter != 'ALL';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      color: colorScheme.surface,
+      child: Column(
+        children: [
+          DropdownButtonFormField<String?>(
+            key: ValueKey(_billedSelectedContract?.id),
+            initialValue: _billedSelectedContract?.id,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Filtra per Contratto',
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              prefixIcon: const Icon(Icons.assignment_outlined, size: 20),
+            ),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('Tutti i contratti'),
+              ),
+              ..._contracts.map(
+                (c) =>
+                    DropdownMenuItem(value: c.id, child: Text(c.displayName)),
+              ),
+            ],
+            onChanged: (id) {
+              setState(() {
+                _billedSelectedContract = id == null
+                    ? null
+                    : _contracts.firstWhere((c) => c.id == id);
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        selected: _billedSelectedMonth == null,
+                        label: const Text('Tutti i mesi'),
+                        onSelected: (_) {
+                          setState(() => _billedSelectedMonth = null);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      if (_billedSelectedMonth != null) ...[
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: _prevBilledMonth,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        Text(
+                          DateFormat('MMMM yyyy', 'it_IT')
+                              .format(_billedSelectedMonth!),
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: isCurrentMonth ? null : _nextBilledMonth,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ] else
+                        ActionChip(
+                          label: const Text('Scegli mese corrente'),
+                          onPressed: () {
+                            setState(
+                              () => _billedSelectedMonth =
+                                  DateTime(now.year, now.month, 1),
+                            );
+                          },
+                        ),
+                      const SizedBox(width: 12),
+                      // Filtro stato pagamento
+                      ChoiceChip(
+                        label: const Text('Tutte'),
+                        selected: _billedPaymentFilter == 'ALL',
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => _billedPaymentFilter = 'ALL');
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Pagate'),
+                        selected: _billedPaymentFilter == 'PAID',
+                        selectedColor: Colors.green.withValues(alpha: 0.2),
+                        labelStyle: TextStyle(
+                          color: _billedPaymentFilter == 'PAID'
+                              ? Colors.green.shade800
+                              : null,
+                          fontWeight: _billedPaymentFilter == 'PAID'
+                              ? FontWeight.bold
+                              : null,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => _billedPaymentFilter = 'PAID');
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Da Pagare'),
+                        selected: _billedPaymentFilter == 'UNPAID',
+                        selectedColor: Colors.amber.withValues(alpha: 0.2),
+                        labelStyle: TextStyle(
+                          color: _billedPaymentFilter == 'UNPAID'
+                              ? Colors.amber.shade900
+                              : null,
+                          fontWeight: _billedPaymentFilter == 'UNPAID'
+                              ? FontWeight.bold
+                              : null,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => _billedPaymentFilter = 'UNPAID');
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (hasActiveFilters)
+                IconButton(
+                  icon: const Icon(Icons.filter_alt_off),
+                  color: colorScheme.error,
+                  tooltip: 'Resetta filtri',
+                  onPressed: () {
+                    setState(() {
+                      _billedSelectedContract = null;
+                      _billedSelectedMonth = null;
+                      _billedPaymentFilter = 'ALL';
+                    });
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBilledTab(ColorScheme colorScheme, TextTheme textTheme) {
     if (_loadingBilled) return const Center(child: CircularProgressIndicator());
     if (_billed.isEmpty) {
@@ -584,57 +992,136 @@ class _BillingScreenState extends State<BillingScreen>
       );
     }
 
-    // Raggruppa per numero fattura
-    final Map<String, List<Lesson>> grouped = {};
-    for (final l in _billed) {
-      final key = l.invoiceNumber ?? '—';
-      grouped.putIfAbsent(key, () => []).add(l);
-    }
+    final grouped = _filteredGroupedBilled;
+    final totalBilledAmount = grouped.values
+        .expand((l) => l)
+        .fold(0.0, (s, l) => s + (l.amount ?? 0));
+    final totalBilledHours = grouped.values
+        .expand((l) => l)
+        .fold(0.0, (s, l) => s + _lessonHours(l));
 
-    return RefreshIndicator(
-      onRefresh: _loadBilled,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-        itemCount: grouped.length,
-        itemBuilder: (_, i) {
-          final invoiceNum = grouped.keys.elementAt(i);
-          final lessons = grouped[invoiceNum]!;
-          final totalAmount = lessons.fold(0.0, (s, l) => s + (l.amount ?? 0));
-          final totalHours = lessons.fold(0.0, (s, l) => s + _lessonHours(l));
-          final invoiceDate = lessons.first.invoiceDate;
-          final isPaid = lessons.isNotEmpty && lessons.every((l) => l.isPaid == true);
-          final isExpanded = _expandedInvoices.contains(invoiceNum);
+    return Column(
+      children: [
+        // Sezione filtri
+        _buildBilledFilterBar(colorScheme, textTheme),
+        const Divider(height: 1),
 
-          return _InvoiceCard(
-            key: ValueKey(invoiceNum),
-            invoiceNum: invoiceNum,
-            lessons: lessons,
-            totalAmount: totalAmount,
-            totalHours: totalHours,
-            invoiceDate: invoiceDate,
-            isPaid: isPaid,
-            isExpanded: isExpanded,
-            currency: currency,
-            dateFormat: dateFormat,
-            textTheme: textTheme,
-            colorScheme: colorScheme,
-            onToggleExpand: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedInvoices.remove(invoiceNum);
-                } else {
-                  _expandedInvoices.add(invoiceNum);
-                }
-              });
-            },
-            onTogglePayment: () =>
-                _toggleInvoicePaymentStatus(lessons, isPaid),
-            onUnmarkLesson: _unmarkLesson,
-            contractName: _contractName,
-            lessonHours: _lessonHours,
-          );
-        },
-      ),
+        // Barra riassuntiva fatture filtrate
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          color: colorScheme.primary.withValues(alpha: 0.05),
+          child: Row(
+            children: [
+              Text(
+                '${grouped.length} ${grouped.length == 1 ? "fattura" : "fatture"}',
+                style:
+                    textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                '${totalBilledHours.toStringAsFixed(1)} h',
+                style: textTheme.labelMedium,
+              ),
+              const Spacer(),
+              Text(
+                currency.format(totalBilledAmount),
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        // Lista fatture
+        Expanded(
+          child: grouped.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long_outlined,
+                            size: 48,
+                            color: colorScheme.onSurface.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Nessuna fattura corrisponde ai filtri selezionati.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.clear_all),
+                          label: const Text('Mostra tutte'),
+                          onPressed: () {
+                            setState(() {
+                              _billedSelectedContract = null;
+                              _billedSelectedMonth = null;
+                              _billedPaymentFilter = 'ALL';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadBilled,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+                    itemCount: grouped.length,
+                    itemBuilder: (_, i) {
+                      final invoiceNum = grouped.keys.elementAt(i);
+                      final lessons = grouped[invoiceNum]!;
+                      final totalAmount =
+                          lessons.fold(0.0, (s, l) => s + (l.amount ?? 0));
+                      final totalHours =
+                          lessons.fold(0.0, (s, l) => s + _lessonHours(l));
+                      final invoiceDate = lessons.first.invoiceDate;
+                      final isPaid = lessons.isNotEmpty &&
+                          lessons.every((l) => l.isPaid == true);
+                      final isExpanded =
+                          _expandedInvoices.contains(invoiceNum);
+
+                      return _InvoiceCard(
+                        key: ValueKey(invoiceNum),
+                        invoiceNum: invoiceNum,
+                        lessons: lessons,
+                        totalAmount: totalAmount,
+                        totalHours: totalHours,
+                        invoiceDate: invoiceDate,
+                        isPaid: isPaid,
+                        isExpanded: isExpanded,
+                        currency: currency,
+                        dateFormat: dateFormat,
+                        textTheme: textTheme,
+                        colorScheme: colorScheme,
+                        onToggleExpand: () {
+                          setState(() {
+                            if (isExpanded) {
+                              _expandedInvoices.remove(invoiceNum);
+                            } else {
+                              _expandedInvoices.add(invoiceNum);
+                            }
+                          });
+                        },
+                        onTogglePayment: () =>
+                            _toggleInvoicePaymentStatus(lessons, isPaid),
+                        onUnmarkLesson: _unmarkLesson,
+                        contractName: _contractName,
+                        lessonHours: _lessonHours,
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }
