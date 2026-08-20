@@ -317,35 +317,57 @@ class _ContractsScreenState extends State<ContractsScreen> {
           const SizedBox(height: 20),
 
           // Progress Bar Ore
-          if (contract.totalHoursLimit != null) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ore Fatturate: ${contract.billedHours ?? 0} / ${contract.totalHoursLimit}',
-                  style: textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+          if (contract.totalHoursLimit != null &&
+              contract.totalHoursLimit! > 0) ...[
+            Builder(builder: (context) {
+              final billed = contract.billedHours ?? 0.0;
+              final limit = contract.totalHoursLimit!;
+              final billedStr = billed.toStringAsFixed(
+                  billed.truncateToDouble() == billed ? 0 : 1);
+              final limitStr = limit.toStringAsFixed(
+                  limit.truncateToDouble() == limit ? 0 : 1);
+              final percent = (progress * 100).toInt();
+
+              return Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Ore Fatturate: $billedStr / $limitStr h',
+                        style: textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '$percent%',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: progress >= 1.0
+                              ? Colors.green.shade700
+                              : colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  '${(progress * 100).toInt()}%',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 8,
+                      backgroundColor:
+                          colorScheme.primary.withValues(alpha: 0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        progress >= 1.0
+                            ? Colors.green.shade600
+                            : colorScheme.primary,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-              ),
-            ),
+                ],
+              );
+            }),
           ] else ...[
             Text(
               'Nessun limite ore impostato.',

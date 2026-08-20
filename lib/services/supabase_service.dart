@@ -37,11 +37,43 @@ class SupabaseService {
   // --- Contratti ---
 
   Future<List<Contract>> getContracts() async {
-    final response = await _client
-        .from('contracts')
-        .select()
-        .order('start_date', ascending: false);
-    return (response as List).map((json) => Contract.fromJson(json)).toList();
+    try {
+      final response = await _client
+          .from('contracts')
+          .select('*, lessons(duration, is_billed)')
+          .order('start_date', ascending: false);
+
+      return (response as List).map((json) {
+        final map = Map<String, dynamic>.from(json as Map);
+
+        if (map['lessons'] is List) {
+          final lessonsList = map['lessons'] as List;
+          double calculatedBilledHours = 0.0;
+          for (final l in lessonsList) {
+            if (l is Map && (l['is_billed'] == true)) {
+              final durationStr = l['duration'] as String?;
+              if (durationStr != null && durationStr.isNotEmpty) {
+                final parts = durationStr.split(':');
+                if (parts.length >= 2) {
+                  final hours = int.tryParse(parts[0]) ?? 0;
+                  final minutes = int.tryParse(parts[1]) ?? 0;
+                  calculatedBilledHours += hours + (minutes / 60.0);
+                }
+              }
+            }
+          }
+          map['billed_hours'] = calculatedBilledHours;
+        }
+
+        return Contract.fromJson(map);
+      }).toList();
+    } catch (_) {
+      final response = await _client
+          .from('contracts')
+          .select()
+          .order('start_date', ascending: false);
+      return (response as List).map((json) => Contract.fromJson(json)).toList();
+    }
   }
 
   Future<Contract> insertContract(Contract contract) async {
