@@ -1437,40 +1437,80 @@ class _InvoiceCard extends StatelessWidget {
                               ListTile(
                                 contentPadding:
                                     const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 2),
+                                        horizontal: 16, vertical: 4),
+                                isThreeLine: true,
                                 leading: Container(
-                                  width: 36,
-                                  height: 36,
+                                  width: 40,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 4),
                                   decoration: BoxDecoration(
                                     color: colorScheme.primary
                                         .withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      lesson.startDateTime.day.toString(),
-                                      style: textTheme.labelMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.primary,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        lesson.startDateTime.day.toString(),
+                                        style: textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.primary,
+                                        ),
                                       ),
-                                    ),
+                                      Text(
+                                        DateFormat('MMM', 'it_IT')
+                                            .format(lesson.startDateTime)
+                                            .toUpperCase(),
+                                        style: textTheme.labelSmall?.copyWith(
+                                          color: colorScheme.primary,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 title: Text(
                                   lesson.summary ?? 'Lezione',
                                   style: textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w500),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                      fontWeight: FontWeight.w600),
                                 ),
-                                subtitle: Text(
-                                  contractName(lesson.contractId),
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                subtitle: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      contractName(lesson.contractId),
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.75),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.schedule_rounded,
+                                          size: 12,
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${lessonHours(lesson).toStringAsFixed(1)} h (${lesson.duration})',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -1478,17 +1518,17 @@ class _InvoiceCard extends StatelessWidget {
                                     if (lesson.amount != null)
                                       Text(
                                         currency.format(lesson.amount),
-                                        style: textTheme.bodyMedium?.copyWith(
-                                          color: Colors.green.shade600,
+                                        style: textTheme.titleSmall?.copyWith(
+                                          color: Colors.green.shade700,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     const SizedBox(width: 4),
                                     IconButton(
-                                      icon: Icon(Icons.undo,
+                                      icon: Icon(Icons.undo_rounded,
                                           size: 18,
                                           color: colorScheme.onSurface
-                                              .withValues(alpha: 0.3)),
+                                              .withValues(alpha: 0.35)),
                                       tooltip: 'Rimuovi da fattura',
                                       visualDensity: VisualDensity.compact,
                                       onPressed: () =>
