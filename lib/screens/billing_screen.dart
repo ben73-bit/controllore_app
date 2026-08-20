@@ -714,7 +714,7 @@ class _InvoiceCard extends StatelessWidget {
               onTap: onToggleExpand,
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 decoration: BoxDecoration(
                   color: isPaid
                       ? Colors.green.withValues(alpha: 0.07)
@@ -724,8 +724,8 @@ class _InvoiceCard extends StatelessWidget {
                   children: [
                     // Icona stato
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
                         color: isPaid
                             ? Colors.green.withValues(alpha: 0.16)
@@ -740,7 +740,7 @@ class _InvoiceCard extends StatelessWidget {
                         size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
 
                     // Numero e data
                     Expanded(
@@ -752,36 +752,49 @@ class _InvoiceCard extends StatelessWidget {
                             style: textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              if (invoiceDate != null) ...[
-                                Icon(Icons.calendar_today_rounded,
-                                    size: 11,
-                                    color: colorScheme.onSurface
-                                        .withValues(alpha: 0.4)),
-                                const SizedBox(width: 3),
-                                Text(
-                                  dateFormat.format(invoiceDate!),
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
+                              if (invoiceDate != null)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.calendar_today_rounded,
+                                        size: 11,
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.4)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      dateFormat.format(invoiceDate!),
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.school_rounded,
+                                      size: 11,
+                                      color: colorScheme.onSurface
+                                          .withValues(alpha: 0.4)),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${lessons.length} lez · ${totalHours.toStringAsFixed(1)} h',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              Icon(Icons.school_rounded,
-                                  size: 11,
-                                  color: colorScheme.onSurface
-                                      .withValues(alpha: 0.4)),
-                              const SizedBox(width: 3),
-                              Text(
-                                '${lessons.length} lez · ${totalHours.toStringAsFixed(1)} h',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurface
-                                      .withValues(alpha: 0.5),
-                                ),
+                                ],
                               ),
                             ],
                           ),
@@ -789,17 +802,22 @@ class _InvoiceCard extends StatelessWidget {
                       ),
                     ),
 
+                    const SizedBox(width: 8),
+
                     // Importo + badge pagamento
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          currency.format(totalAmount),
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isPaid
-                                ? Colors.green.shade700
-                                : colorScheme.primary,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            currency.format(totalAmount),
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isPaid
+                                  ? Colors.green.shade700
+                                  : colorScheme.primary,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -832,7 +850,7 @@ class _InvoiceCard extends StatelessWidget {
                       ],
                     ),
 
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
 
                     // Freccia expand/collapse
                     AnimatedRotation(
