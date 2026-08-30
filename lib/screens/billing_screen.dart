@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/lesson.dart';
 import '../models/contract.dart';
 import '../services/supabase_service.dart';
+import '../widgets/responsive_layout.dart';
 
 class BillingScreen extends StatefulWidget {
   const BillingScreen({super.key});
@@ -240,41 +241,44 @@ class _BillingScreenState extends State<BillingScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Crea Fattura'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${_selected.length} lezioni selezionate',
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(ctx).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: invoiceController,
-                decoration: const InputDecoration(
-                  labelText: 'Numero Fattura *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.receipt_long),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: ResponsiveLayout.kMaxFormWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_selected.length} lezioni selezionate',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(ctx).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final picked = await showDatePicker(
-                    context: ctx,
-                    initialDate: invoiceDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2101),
-                  );
-                  if (picked != null) setDialogState(() => invoiceDate = picked);
-                },
-                icon: const Icon(Icons.calendar_today, size: 18),
-                label: Text('Data fattura: ${DateFormat('dd/MM/yyyy').format(invoiceDate)}'),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: invoiceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Numero Fattura *',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.receipt_long),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: invoiceDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) setDialogState(() => invoiceDate = picked);
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: Text('Data fattura: ${DateFormat('dd/MM/yyyy').format(invoiceDate)}'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -409,8 +413,8 @@ class _BillingScreenState extends State<BillingScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildUnbilledTab(colorScheme, textTheme),
-          _buildBilledTab(colorScheme, textTheme),
+          ResponsiveLayout.constrainedWidth(_buildUnbilledTab(colorScheme, textTheme)),
+          ResponsiveLayout.constrainedWidth(_buildBilledTab(colorScheme, textTheme)),
         ],
       ),
       // FAB visibile solo nella tab "Da Fatturare" con qualcosa di selezionato

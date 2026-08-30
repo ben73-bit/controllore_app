@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/contract.dart';
 import '../services/supabase_service.dart';
+import '../widgets/responsive_layout.dart';
 import 'add_contract_screen.dart';
 import 'contract_detail_screen.dart';
 
@@ -115,40 +116,75 @@ class _ContractsScreenState extends State<ContractsScreen> {
           ? _buildEmptyState(textTheme)
           : RefreshIndicator(
               onRefresh: _loadContracts,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(24.0),
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _contracts.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final contract = _contracts[index];
-                  return Dismissible(
-                    key: Key(contract.id ?? index.toString()),
-                    direction: DismissDirection.endToStart,
-                    confirmDismiss: (_) => _confirmDelete(contract),
-                    onDismissed: (_) => _deleteContract(contract),
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 24),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(24),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth >=
+                      ResponsiveLayout.kDesktopBreakpoint;
+
+                  if (isDesktop) {
+                    return ResponsiveLayout.constrainedWidth(
+                      GridView.builder(
+                        padding: const EdgeInsets.all(32),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 580,
+                          mainAxisExtent: 220,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 20,
+                        ),
+                        itemCount: _contracts.length,
+                        itemBuilder: (context, index) {
+                          final contract = _contracts[index];
+                          return _buildContractCard(
+                            contract,
+                            textTheme,
+                            colorScheme,
+                          );
+                        },
                       ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.delete_outline, color: Colors.white, size: 28),
-                          SizedBox(height: 4),
-                          Text('Elimina', style: TextStyle(color: Colors.white, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    child: _buildContractCard(
-                      contract,
-                      textTheme,
-                      colorScheme,
-                    ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(24.0),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: _contracts.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final contract = _contracts[index];
+                      return Dismissible(
+                        key: Key(contract.id ?? index.toString()),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (_) => _confirmDelete(contract),
+                        onDismissed: (_) => _deleteContract(contract),
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 24),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.delete_outline,
+                                  color: Colors.white, size: 28),
+                              SizedBox(height: 4),
+                              Text('Elimina',
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        child: _buildContractCard(
+                          contract,
+                          textTheme,
+                          colorScheme,
+                        ),
+                      );
+                    },
                   );
                 },
               ),

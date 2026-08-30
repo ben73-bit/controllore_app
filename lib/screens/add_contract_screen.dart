@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/contract.dart';
 import '../services/supabase_service.dart';
+import '../widgets/responsive_layout.dart';
 
 class AddContractScreen extends StatefulWidget {
   /// Se [contract] è fornito, la schermata è in modalità MODIFICA.
@@ -134,141 +135,141 @@ class _AddContractScreenState extends State<AddContractScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ---- Sezione: Dati Azienda ----
-                    _sectionLabel(context, 'Dati Azienda / Cliente'),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _companyController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nome Azienda / Cliente',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.business),
+          : ResponsiveLayout.constrainedWidth(
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ---- Sezione: Dati Azienda ----
+                      _sectionLabel(context, 'Dati Azienda / Cliente'),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _companyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome Azienda / Cliente',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.business),
+                        ),
+                        validator: (val) =>
+                            val == null || val.isEmpty ? 'Campo obbligatorio' : null,
                       ),
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Campo obbligatorio' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _contractNumberController,
-                      decoration: const InputDecoration(
-                        labelText: 'Numero Contratto / Riferimento (Opzionale)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.numbers),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _contractNumberController,
+                        decoration: const InputDecoration(
+                          labelText: 'Numero / Riferimento Contratto (opzionale)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.tag),
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 24),
 
-                    // ---- Sezione: Tariffe e Ore ----
-                    _sectionLabel(context, 'Tariffe e Ore'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _rateController,
-                            decoration: const InputDecoration(
-                              labelText: 'Tariffa Oraria (€)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.euro),
+                      // ---- Sezione: Condizioni Economiche ----
+                      _sectionLabel(context, 'Condizioni Economiche e Limiti'),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _rateController,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Tariffa Oraria (€ / ora) *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.euro),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) {
+                            return 'Campo obbligatorio';
+                          }
+                          final parsed =
+                              double.tryParse(val.replaceAll(',', '.'));
+                          if (parsed == null || parsed <= 0) {
+                            return 'Inserisci un importo valido (> 0)';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _limitController,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Monte Ore Totale (opzionale)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timelapse),
+                        ),
+                        validator: (val) {
+                          if (val != null && val.isNotEmpty) {
+                            final parsed =
+                                double.tryParse(val.replaceAll(',', '.'));
+                            if (parsed == null || parsed <= 0) {
+                              return 'Inserisci un numero di ore valido (> 0)';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ---- Sezione: Validità Temporale ----
+                      _sectionLabel(context, 'Validità Temporale'),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _selectDate(context, true),
+                              icon: const Icon(Icons.calendar_today, size: 18),
+                              label: Text(
+                                  'Inizio: ${dateFormat.format(_startDate)}'),
                             ),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            validator: (val) {
-                              if (val == null || val.isEmpty) return 'Obbligatorio';
-                              if (double.tryParse(val.replaceAll(',', '.')) == null) {
-                                return 'Numero non valido';
-                              }
-                              return null;
-                            },
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _limitController,
-                            decoration: const InputDecoration(
-                              labelText: 'Monte Ore (Opz.)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.timer),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _selectDate(context, false),
+                              icon: const Icon(Icons.event, size: 18),
+                              label: Text(_endDate == null
+                                  ? 'Nessuna fine'
+                                  : 'Fine: ${dateFormat.format(_endDate!)}'),
                             ),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            validator: (val) {
-                              if (val != null &&
-                                  val.isNotEmpty &&
-                                  double.tryParse(val.replaceAll(',', '.')) == null) {
-                                return 'Numero non valido';
-                              }
-                              return null;
-                            },
                           ),
-                        ),
-                      ],
-                    ),
+                          if (_endDate != null)
+                            IconButton(
+                              icon: Icon(Icons.clear,
+                                  color: colorScheme.error),
+                              tooltip: 'Rimuovi data fine',
+                              onPressed: () => setState(() => _endDate = null),
+                            ),
+                        ],
+                      ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 40),
 
-                    // ---- Sezione: Date ----
-                    _sectionLabel(context, 'Periodo di Validità'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _selectDate(context, true),
-                            icon: const Icon(Icons.calendar_today, size: 18),
-                            label: Text('Inizio: ${dateFormat.format(_startDate)}'),
+                      // ---- Pulsante Salva ----
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: FilledButton.icon(
+                          onPressed: _isLoading ? null : _save,
+                          icon: Icon(_isEditing ? Icons.save : Icons.add),
+                          label: Text(
+                            _isEditing ? 'SALVA MODIFICHE' : 'CREA CONTRATTO',
+                            style: const TextStyle(fontSize: 16),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _selectDate(context, false),
-                            icon: const Icon(Icons.calendar_month, size: 18),
-                            label: Text(_endDate == null
-                                ? 'Imposta Scadenza (Opz.)'
-                                : 'Fine: ${dateFormat.format(_endDate!)}'),
-                          ),
-                        ),
-                        if (_endDate != null)
-                          IconButton(
-                            icon: Icon(Icons.clear,
-                                color: colorScheme.error),
-                            tooltip: 'Rimuovi data fine',
-                            onPressed: () => setState(() => _endDate = null),
-                          ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // ---- Pulsante Salva ----
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: FilledButton.icon(
-                        onPressed: _isLoading ? null : _save,
-                        icon: Icon(_isEditing ? Icons.save : Icons.add),
-                        label: Text(
-                          _isEditing ? 'SALVA MODIFICHE' : 'CREA CONTRATTO',
-                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
+              maxWidth: ResponsiveLayout.kMaxFormWidth,
             ),
     );
   }

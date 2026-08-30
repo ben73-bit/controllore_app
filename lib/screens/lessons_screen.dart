@@ -6,6 +6,7 @@ import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
 import '../utils/ics_parser.dart';
+import '../widgets/responsive_layout.dart';
 import 'add_lesson_screen.dart';
 import 'import_lessons_screen.dart';
 
@@ -350,21 +351,34 @@ class _LessonsScreenState extends State<LessonsScreen> {
                 ),
               ],
             ),
-      body: Column(
-        children: [
-          _buildFilterPanel(colorScheme, textTheme),
-          if (!_isLoading) _buildSummaryBar(colorScheme, textTheme, currency),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _lessons.isEmpty
-                ? _buildEmpty(colorScheme, textTheme)
-                : RefreshIndicator(
-                    onRefresh: _loadAll,
-                    child: _buildGroupedList(colorScheme, textTheme, currency),
-                  ),
-          ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop =
+              constraints.maxWidth >= ResponsiveLayout.kDesktopBreakpoint;
+          final column = Column(
+            children: [
+              _buildFilterPanel(colorScheme, textTheme),
+              if (!_isLoading)
+                _buildSummaryBar(colorScheme, textTheme, currency),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _lessons.isEmpty
+                    ? _buildEmpty(colorScheme, textTheme)
+                    : RefreshIndicator(
+                        onRefresh: _loadAll,
+                        child: _buildGroupedList(
+                            colorScheme, textTheme, currency),
+                      ),
+              ),
+            ],
+          );
+
+          if (isDesktop) {
+            return ResponsiveLayout.constrainedWidth(column);
+          }
+          return column;
+        },
       ),
       floatingActionButton: _isSelectionMode
           ? null

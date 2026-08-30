@@ -6,6 +6,7 @@ import '../services/supabase_service.dart';
 import '../services/migration_service.dart';
 import '../models/lesson.dart';
 import '../theme/app_theme.dart';
+import '../widgets/responsive_layout.dart';
 import 'add_lesson_screen.dart';
 import 'contracts_screen.dart';
 import 'lessons_screen.dart';
@@ -21,6 +22,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final SupabaseService _supabaseService = SupabaseService();
   final MigrationService _migrationService = MigrationService();
+
+  // Indice per la navigazione desktop (NavigationRail + IndexedStack)
+  int _selectedIndex = 0;
 
   bool _isLoading = true;
   double _totaleOre = 0.0;
@@ -259,6 +263,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop =
+            constraints.maxWidth >= ResponsiveLayout.kDesktopBreakpoint;
+
+        if (isDesktop) {
+          return _buildDesktopLayout(textTheme, colorScheme);
+        } else {
+          return _buildMobileLayout(textTheme, colorScheme);
+        }
+      },
+    );
+  }
+
+  // ──────────────────────────────────────────────────
+  // Layout MOBILE (< 900px, Drawer a comparsa)
+  // ──────────────────────────────────────────────────
+  Widget _buildMobileLayout(TextTheme textTheme, ColorScheme colorScheme) {
     return Scaffold(
       drawer: _buildDrawer(textTheme, colorScheme),
       body: SafeArea(
@@ -273,18 +295,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   _buildHeader(textTheme, colorScheme),
                   const SizedBox(height: 24),
-
-                  // ---- Selettore Mese ----
                   _buildMonthSelector(textTheme, colorScheme),
                   const SizedBox(height: 20),
-
-                  // ---- Cards statistiche ----
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _buildSummaryCards(textTheme, colorScheme),
                   const SizedBox(height: 32),
-
-                  // ---- Ultime Lezioni ----
                   Text('Ultime Lezioni', style: textTheme.titleLarge),
                   const SizedBox(height: 16),
                   _isLoading
@@ -311,6 +327,288 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: const Text('Nuova Lezione'),
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────
+  // Layout DESKTOP (≥ 900px, NavigationRail permanente)
+  // ──────────────────────────────────────────────────
+  Widget _buildDesktopLayout(TextTheme textTheme, ColorScheme colorScheme) {
+    final userEmail = _supabaseService.currentUser?.email ?? 'Utente';
+
+    // Le 4 sezioni principali: mantengono il proprio stato tramite IndexedStack
+    final sections = [
+      _buildDashboardContent(textTheme, colorScheme),
+      const LessonsScreen(),
+      const ContractsScreen(),
+      const BillingScreen(),
+    ];
+
+    return Scaffold(
+      body: Row(
+        children: [
+          // ── NavigationRail fisso a sinistra ────────────────────
+          NavigationRail(
+            extended: true,
+            minExtendedWidth: 220,
+            backgroundColor: colorScheme.surface,
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (i) {
+              setState(() => _selectedIndex = i);
+              if (i == 0) _loadData();
+            },
+            leading: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                    child:
+                        Icon(Icons.person, color: colorScheme.primary, size: 28),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'ControllOre',
+                    style: textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    userEmail,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.55),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            trailing: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Divider(indent: 16, endIndent: 16),
+                  // Importa dati Desktop
+                  InkWell(
+                    onTap: _importDesktopData,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.file_upload_outlined,
+                              color: Colors.blue.shade700, size: 20),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Importa JSON',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Logout
+                  InkWell(
+                    onTap: _confirmLogout,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.logout, color: Colors.red, size: 20),
+                          SizedBox(width: 12),
+                          Text(
+                            'Esci',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: Text('Dashboard'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.list_alt_outlined),
+                selectedIcon: Icon(Icons.list_alt_rounded),
+                label: Text('Le Mie Lezioni'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.assignment_outlined),
+                selectedIcon: Icon(Icons.assignment),
+                label: Text('I Miei Contratti'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long),
+                label: Text('Fatturazione'),
+              ),
+            ],
+          ),
+
+          // Separatore verticale
+          const VerticalDivider(width: 1, thickness: 1),
+
+          // ── Contenuto principale ─────────────────────
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: sections,
+            ),
+          ),
+        ],
+      ),
+      // FAB visibile su Desktop solo quando siamo nella tab Dashboard
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const AddLessonScreen()),
+                ).then((added) {
+                  if (added == true) _loadData();
+                });
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Nuova Lezione'),
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
+            )
+          : null,
+    );
+  }
+
+  // ──────────────────────────────────────────────────
+  // Contenuto Dashboard (usato nel tab 0 su desktop)
+  // ──────────────────────────────────────────────────
+  Widget _buildDashboardContent(TextTheme textTheme, ColorScheme colorScheme) {
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ResponsiveLayout.constrainedWidth(
+          Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header desktop: titolo + menu account
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ciao!',
+                          style: textTheme.bodyLarge?.copyWith(
+                            color:
+                                colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        Text(
+                          'Dashboard',
+                          style:
+                              textTheme.displayLarge?.copyWith(fontSize: 30),
+                        ),
+                      ],
+                    ),
+                    PopupMenuButton<String>(
+                      icon: CircleAvatar(
+                        radius: 18,
+                        backgroundColor:
+                            colorScheme.primary.withValues(alpha: 0.1),
+                        child: Icon(Icons.person,
+                            color: colorScheme.primary, size: 18),
+                      ),
+                      tooltip: 'Account',
+                      onSelected: (value) async {
+                        if (value == 'import') {
+                          _importDesktopData();
+                        } else if (value == 'logout') {
+                          _confirmLogout();
+                        }
+                      },
+                      itemBuilder: (ctx) {
+                        final userEmail =
+                            _supabaseService.currentUser?.email ?? 'Utente';
+                        return [
+                          PopupMenuItem<String>(
+                            enabled: false,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Connesso come:',
+                                    style: textTheme.bodySmall),
+                                Text(userEmail,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.bold)),
+                                const Divider(),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'import',
+                            child: Row(children: [
+                              Icon(Icons.file_upload_outlined,
+                                  color: Colors.blue, size: 20),
+                              SizedBox(width: 8),
+                              Text('Importa dati Desktop'),
+                            ]),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'logout',
+                            child: Row(children: [
+                              Icon(Icons.logout, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('Esci',
+                                  style: TextStyle(color: Colors.red)),
+                            ]),
+                          ),
+                        ];
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                _buildMonthSelector(textTheme, colorScheme),
+                const SizedBox(height: 24),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildSummaryCards(textTheme, colorScheme),
+                const SizedBox(height: 40),
+                Text('Ultime Lezioni', style: textTheme.titleLarge),
+                const SizedBox(height: 16),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _recentLessons.isEmpty
+                    ? _buildEmptyLessons(textTheme, colorScheme)
+                    : _buildRecentLessonsList(textTheme, colorScheme),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

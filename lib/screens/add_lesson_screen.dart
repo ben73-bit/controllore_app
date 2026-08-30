@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
+import '../widgets/responsive_layout.dart';
 
 class AddLessonScreen extends StatefulWidget {
   /// Se [lesson] è fornito, la schermata è in modalità MODIFICA.
@@ -225,148 +226,151 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   }
 
   Widget _buildForm(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Banner errore permanente a schermo
-            if (_lastError != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  border: Border.all(color: Colors.red.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: Colors.red.shade700,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _lastError!,
-                        style: TextStyle(
-                          color: Colors.red.shade800,
-                          fontSize: 13,
+    return ResponsiveLayout.constrainedWidth(
+      SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Banner errore permanente a schermo
+              if (_lastError != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _lastError!,
+                          style: TextStyle(
+                            color: Colors.red.shade800,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            DropdownButtonFormField<Contract>(
-              decoration: const InputDecoration(
-                labelText: 'Seleziona Contratto',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.business),
-              ),
-              initialValue: _selectedContract,
-              items: _contracts
-                  .map(
-                    (c) => DropdownMenuItem(
-                      value: c,
-                      child: Text(
-                        c.displayName,
-                        overflow: TextOverflow.ellipsis,
+              DropdownButtonFormField<Contract>(
+                decoration: const InputDecoration(
+                  labelText: 'Seleziona Contratto',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.business),
+                ),
+                initialValue: _selectedContract,
+                items: _contracts
+                    .map(
+                      (c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(
+                          c.displayName,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (val) => setState(() => _selectedContract = val),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _summaryController,
-              decoration: const InputDecoration(
-                labelText: 'Oggetto (es. Docenza Base)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.title),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedContract = val),
               ),
-              validator: (val) =>
-                  val == null || val.isEmpty ? 'Campo obbligatorio' : null,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _summaryController,
+                decoration: const InputDecoration(
+                  labelText: 'Oggetto (es. Docenza Base)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.title),
+                ),
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Campo obbligatorio' : null,
+              ),
+              const SizedBox(height: 16),
 
-            // Row per la Durata
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _hoursController,
-                    decoration: const InputDecoration(
-                      labelText: 'Ore',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.schedule),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (val) =>
-                        val == null || val.isEmpty ? 'Req' : null,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _minutesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Minuti',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (val) =>
-                        val == null || val.isEmpty ? 'Req' : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _selectDate,
-                    icon: const Icon(Icons.calendar_today),
-                    label: Text(
-                      '${_startDate.day}/${_startDate.month}/${_startDate.year}',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _selectTime,
-                    icon: const Icon(Icons.access_time),
-                    label: Text(_startTime.format(context)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: FilledButton(
-                onPressed: _isSaving ? null : _saveLesson,
-                child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        _isEditing ? 'SALVA MODIFICHE' : 'REGISTRA LEZIONE',
-                        style: const TextStyle(fontSize: 16),
+              // Row per la Durata
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _hoursController,
+                      decoration: const InputDecoration(
+                        labelText: 'Ore',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.schedule),
                       ),
+                      keyboardType: TextInputType.number,
+                      validator: (val) =>
+                          val == null || val.isEmpty ? 'Req' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _minutesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Minuti',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (val) =>
+                          val == null || val.isEmpty ? 'Req' : null,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _selectDate,
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text(
+                        '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _selectTime,
+                      icon: const Icon(Icons.access_time),
+                      label: Text(_startTime.format(context)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: FilledButton(
+                  onPressed: _isSaving ? null : _saveLesson,
+                  child: _isSaving
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          _isEditing ? 'SALVA MODIFICHE' : 'REGISTRA LEZIONE',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+      maxWidth: ResponsiveLayout.kMaxFormWidth,
     );
   }
 }
