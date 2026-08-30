@@ -11,6 +11,7 @@ import 'add_lesson_screen.dart';
 import 'contracts_screen.dart';
 import 'lessons_screen.dart';
 import 'billing_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +35,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Filtro mese: null = tutto lo storico
   DateTime? _selectedMonth; // es. DateTime(2026, 6, 1)
   bool get _isFiltered => _selectedMonth != null;
+
+  /// Recupera il nome dell'utente dai metadata o ricorre all'email
+  String get _userName {
+    final user = _supabaseService.currentUser;
+    final metadata = user?.userMetadata;
+    final fullName = metadata?['full_name'] as String?;
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      return fullName.trim();
+    }
+    final name = metadata?['name'] as String?;
+    if (name != null && name.trim().isNotEmpty) {
+      return name.trim();
+    }
+    final firstName = metadata?['first_name'] as String?;
+    if (firstName != null && firstName.trim().isNotEmpty) {
+      final lastName = metadata?['last_name'] as String? ?? '';
+      return '$firstName $lastName'.trim();
+    }
+    return user?.email ?? 'Utente';
+  }
+
+  /// Restituisce il saluto personalizzato 'Ciao [Nome]!'
+  String get _greeting => 'Ciao $_userName!';
 
   @override
   void initState() {
@@ -360,28 +384,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
             leading: Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                    child:
-                        Icon(Icons.person, color: colorScheme.primary, size: 28),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ).then((_) => setState(() {}));
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                        child:
+                            Icon(Icons.person, color: colorScheme.primary, size: 28),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _userName,
+                        style: textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        userEmail,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.55),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'ControllOre',
-                    style: textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    userEmail,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.55),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                ),
               ),
             ),
             trailing: Padding(
@@ -517,22 +556,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ciao!',
-                          style: textTheme.bodyLarge?.copyWith(
-                            color:
-                                colorScheme.onSurface.withValues(alpha: 0.6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _greeting,
+                              style: textTheme.bodyLarge?.copyWith(
+                                color:
+                                    colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Dashboard',
-                          style:
-                              textTheme.displayLarge?.copyWith(fontSize: 30),
-                        ),
-                      ],
+                          Text(
+                            'Dashboard',
+                            style:
+                                textTheme.displayLarge?.copyWith(fontSize: 30),
+                          ),
+                        ],
+                      ),
                     ),
                     PopupMenuButton<String>(
                       icon: CircleAvatar(
@@ -544,7 +591,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       tooltip: 'Account',
                       onSelected: (value) async {
-                        if (value == 'import') {
+                        if (value == 'profile') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ProfileScreen()),
+                          ).then((_) => setState(() {}));
+                        } else if (value == 'import') {
                           _importDesktopData();
                         } else if (value == 'logout') {
                           _confirmLogout();
@@ -561,12 +614,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               children: [
                                 Text('Connesso come:',
                                     style: textTheme.bodySmall),
-                                Text(userEmail,
+                                Text(_userName,
                                     style: textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.bold)),
+                                Text(userEmail,
+                                    style: textTheme.bodySmall?.copyWith(
+                                        color: colorScheme.onSurface
+                                            .withValues(alpha: 0.6))),
                                 const Divider(),
                               ],
                             ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'profile',
+                            child: Row(children: [
+                              Icon(Icons.account_circle_outlined,
+                                  color: Colors.indigo, size: 20),
+                              SizedBox(width: 8),
+                              Text('Il Mio Profilo'),
+                            ]),
                           ),
                           const PopupMenuItem<String>(
                             value: 'import',
@@ -625,26 +691,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
               decoration: BoxDecoration(
                 color: colorScheme.primaryContainer.withValues(alpha: 0.4),
               ),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: colorScheme.primary,
-                child: Icon(Icons.person, color: colorScheme.onPrimary, size: 36),
+              currentAccountPicture: InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ).then((_) => setState(() {}));
+                },
+                child: CircleAvatar(
+                  backgroundColor: colorScheme.primary,
+                  child: Icon(Icons.person, color: colorScheme.onPrimary, size: 36),
+                ),
               ),
               accountName: Text(
-                'ControllOre',
+                _userName,
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onPrimaryContainer,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
               accountEmail: Text(
                 userEmail,
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
 
             // Navigazione sezioni
+            ListTile(
+              leading: Icon(Icons.account_circle_outlined, color: colorScheme.primary),
+              title: const Text('Il Mio Profilo'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ).then((_) => setState(() {}));
+              },
+            ),
             ListTile(
               leading: Icon(Icons.dashboard_outlined, color: colorScheme.primary),
               title: const Text('Dashboard'),
@@ -745,10 +833,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Ciao!',
-                style: textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _greeting,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(height: 2),
@@ -822,7 +916,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               tooltip: 'Account',
               onSelected: (value) async {
-                if (value == 'import') {
+                if (value == 'profile') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ).then((_) => setState(() {}));
+                } else if (value == 'import') {
                   _importDesktopData();
                 } else if (value == 'logout') {
                   _confirmLogout();
@@ -843,13 +942,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         Text(
-                          userEmail,
+                          _userName,
                           style: textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
+                        Text(
+                          userEmail,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const Divider(),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_circle_outlined, color: Colors.indigo, size: 20),
+                        SizedBox(width: 8),
+                        Text('Il Mio Profilo'),
                       ],
                     ),
                   ),
