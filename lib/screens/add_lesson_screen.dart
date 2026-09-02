@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/contract.dart';
 import '../models/lesson.dart';
 import '../services/supabase_service.dart';
@@ -148,6 +147,42 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       );
       final durationStr =
           '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
+
+      // ── Controllo sovrapposizione oraria ──────────────────────────────────
+      final overlapping = await _supabaseService.checkOverlap(
+        start: finalDateTime,
+        duration: durationStr,
+        excludeId: _isEditing ? widget.lesson!.id : null,
+      );
+      if (overlapping) {
+        setState(() => _isSaving = false);
+        if (mounted) {
+          showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              icon: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 40,
+              ),
+              title: const Text('Sovrapposizione Oraria'),
+              content: const Text(
+                'Attenzione: esiste già una lezione pianificata in questo '
+                'intervallo orario. Controlla gli orari.',
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       final totalHoursDecimal = h + (m / 60.0);
       final calculatedAmount =
           totalHoursDecimal * _selectedContract!.hourlyRate;
@@ -173,8 +208,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       if (_isEditing) {
         await _supabaseService.updateLesson(lesson);
       } else {
-        // Inserimento semplice senza .select().single() per evitare errori di parsing
-        await Supabase.instance.client.from('lessons').insert(lesson.toJson());
+        // Usa il service per garantire che user_id sia sempre incluso (RLS)
+        await _supabaseService.insertLesson(lesson);
       }
 
       if (mounted) Navigator.pop(context, true);

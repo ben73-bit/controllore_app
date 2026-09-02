@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ControllOre (Chrome / Web)",
+      "request": "launch",
+      "type": "dart",
+      "args": ["-d", "chrome"]
+    },
+    {
+      "name": "ControllOre (Android Emulator)",
+      "request": "launch",
+      "type": "dart",
+      "args": ["-d", "emulator-5554"]
+    },
+    {
+      "name": "ControllOre (Windows Desktop)",
+      "request": "launch",
+      "type": "dart",
+      "args": ["-d", "windows"]
+    }
+  ]
+}

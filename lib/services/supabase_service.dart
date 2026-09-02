@@ -136,6 +136,77 @@ class SupabaseService {
     await _client.from('lessons').update(lesson.toJson()).eq('id', lesson.id);
   }
 
+  // ---------------------------------------------------------------------------
+  // Helpers privati
+
+  /// Converte una stringa "HH:mm:ss" o "HH:mm" in un oggetto [Duration].
+  Duration _parseDuration(String s) {
+    final parts = s.split(':');
+    final h = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 0 : 0;
+    final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    final sec = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+    return Duration(hours: h, minutes: m, seconds: sec);
+  }
+
+  // ---------------------------------------------------------------------------
+
+  /// Verifica se esiste una sovrapposizione oraria con lezioni già pianificate.
+  ///
+  /// Due intervalli [A_start, A_end) e [B_start, B_end) si sovrappongono se:
+  ///   A_start < B_end  AND  B_start < A_end
+  ///
+  /// La query filtra lato server tramite i campi [start_date_time] e
+  /// [duration] (quest'ultimo valutato in Dart per flessibilità).
+  ///
+  /// [start] – Inizio della nuova lezione (ora locale)
+  /// [duration] – Durata nel formato "HH:mm:ss" o "HH:mm"
+  /// [excludeId] – ID da escludere dalla ricerca (modalità modifica)
+  Future<bool> checkOverlap({
+    required DateTime start,
+    required String duration,
+    String? excludeId,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return false;
+
+    final newEnd = start.add(_parseDuration(duration));
+
+    // Fetch lato server: solo le lezioni il cui start_date_time < fine_nuova
+    // (condizione necessaria per la sovrapposizione). L'altra metà
+    // (fine_esistente > inizio_nuova) viene verificata in Dart perché la
+    // colonna "duration" è di tipo text e non è calcolabile direttamente in SQL.
+    var query = _client
+        .from('lessons')
+        .select('id, start_date_time, duration')
+        .eq('user_id', uid)
+        .lt('start_date_time', newEnd.toUtc().toIso8601String());
+
+    if (excludeId != null && excludeId.isNotEmpty) {
+      query = query.neq('id', excludeId);
+    }
+
+    final response = await query;
+    final list = response as List;
+
+    final newStartUtc = start.toUtc();
+    final newEndUtc = newEnd.toUtc();
+
+    for (final item in list) {
+      final rawStart = item['start_date_time'] as String?;
+      if (rawStart == null) continue;
+      final existingStart = DateTime.parse(rawStart).toUtc();
+      final existingEnd =
+          existingStart.add(_parseDuration((item['duration'] ?? '00:00:00').toString()));
+
+      // Sovrapposizione: existingStart < newEnd  AND  existingEnd > newStart
+      if (existingStart.isBefore(newEndUtc) && existingEnd.isAfter(newStartUtc)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// Inserisce una lista di lezioni in blocco.
   Future<void> insertLessons(List<Lesson> lessons) async {
     if (lessons.isEmpty) return;
