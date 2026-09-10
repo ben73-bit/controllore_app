@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/lesson.dart';
 import '../models/contract.dart';
@@ -176,6 +177,38 @@ class _BillingScreenState extends State<BillingScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  /// Costruisce una stringa di riepilogo lezioni e la copia negli appunti.
+  void _copyInvoiceToClipboard(String invoiceNum, List<Lesson> lessons) {
+    final dateFmt = DateFormat('dd/MM/yyyy', 'it_IT');
+    final timeFmt = DateFormat('HH:mm', 'it_IT');
+
+    final header = 'Fattura N° $invoiceNum';
+    final separator = '─' * header.length;
+
+    final lines = lessons.map((l) {
+      final data = '${dateFmt.format(l.startDateTime)} ${timeFmt.format(l.startDateTime)}';
+      final durata = l.duration.substring(0, 5); // HH:mm
+      final descrizione = (l.summary?.isNotEmpty == true)
+          ? l.summary!
+          : (l.description?.isNotEmpty == true ? l.description! : '—');
+      return 'Data: $data  -  Durata: $durata  -  Descrizione: $descrizione';
+    }).join('\n');
+
+    final text = '$header\n$separator\n$lines';
+
+    Clipboard.setData(ClipboardData(text: text));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Riepilogo copiato negli appunti!'),
+          backgroundColor: Colors.teal,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -1120,6 +1153,8 @@ class _BillingScreenState extends State<BillingScreen>
                         onUnmarkLesson: _unmarkLesson,
                         contractName: _contractName,
                         lessonHours: _lessonHours,
+                        onCopyToClipboard: () =>
+                            _copyInvoiceToClipboard(invoiceNum, lessons),
                       );
                     },
                   ),
@@ -1127,8 +1162,9 @@ class _BillingScreenState extends State<BillingScreen>
         ),
       ],
     );
-  }
 }
+}
+
 
 // ---------------------------------------------------------------------------
 // Widget separato per la card fattura con animazione di espansione
@@ -1153,6 +1189,7 @@ class _InvoiceCard extends StatelessWidget {
     required this.onUnmarkLesson,
     required this.contractName,
     required this.lessonHours,
+    required this.onCopyToClipboard,
   });
 
   final String invoiceNum;
@@ -1171,6 +1208,7 @@ class _InvoiceCard extends StatelessWidget {
   final void Function(Lesson) onUnmarkLesson;
   final String Function(String?) contractName;
   final double Function(Lesson) lessonHours;
+  final VoidCallback onCopyToClipboard;
 
   @override
   Widget build(BuildContext context) {
@@ -1370,13 +1408,52 @@ class _InvoiceCard extends StatelessWidget {
                             height: 1,
                             color: colorScheme.outline.withValues(alpha: 0.15)),
 
-                        // Azione pagamento
+                        // Azioni: Copia + Pagamento
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
+                              // ── Copia per Fatturazione ──
+                              InkWell(
+                                onTap: onCopyToClipboard,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.teal.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.teal.shade300,
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.copy_rounded,
+                                        size: 14,
+                                        color: Colors.teal.shade700,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Copia per Fatturazione',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const Spacer(),
+
+                              // ── Stato pagamento ──
                               InkWell(
                                 onTap: onTogglePayment,
                                 borderRadius: BorderRadius.circular(8),
