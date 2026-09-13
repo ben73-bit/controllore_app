@@ -136,6 +136,36 @@ class SupabaseService {
     await _client.from('lessons').update(lesson.toJson()).eq('id', lesson.id);
   }
 
+  /// Recupera i valori unici non vuoti del campo [summary] per l'utente corrente.
+  Future<List<String>> getUniqueSummaries() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return [];
+
+    try {
+      final response = await _client
+          .from('lessons')
+          .select('summary')
+          .eq('user_id', uid)
+          .timeout(_timeout);
+
+      final list = response as List;
+      final Set<String> unique = {};
+      for (final item in list) {
+        if (item is Map && item['summary'] != null) {
+          final s = item['summary'].toString().trim();
+          if (s.isNotEmpty) {
+            unique.add(s);
+          }
+        }
+      }
+      final result = unique.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      return result;
+    } catch (_) {
+      return [];
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers privati
 
