@@ -30,6 +30,8 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   bool _isLoadingData = true;
   bool _isSaving = false;
   List<Contract> _contracts = [];
+  List<String> _uniqueSummaries = [];
+  TextEditingController? _activeSummaryController;
   String? _lastError; // mostrato permanentemente a schermo
 
   final SupabaseService _supabaseService = SupabaseService();
@@ -40,6 +42,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   void initState() {
     super.initState();
     _loadContracts();
+    _loadUniqueSummaries();
 
     // Pre-popola i campi in modalità modifica
     if (_isEditing) {
@@ -91,6 +94,17 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoadingData = false);
+    }
+  }
+
+  Future<void> _loadUniqueSummaries() async {
+    try {
+      final summaries = await _supabaseService.getUniqueSummaries();
+      if (mounted) {
+        setState(() => _uniqueSummaries = summaries);
+      }
+    } catch (_) {
+      // Ignora silenziosamente, non blocca l'operatività della schermata
     }
   }
 
@@ -187,6 +201,9 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
       final calculatedAmount =
           totalHoursDecimal * _selectedContract!.hourlyRate;
 
+      final summaryText =
+          (_activeSummaryController?.text ?? _summaryController.text).trim();
+
       final lesson = Lesson(
         id: _isEditing
             ? widget.lesson!.id
@@ -195,7 +212,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
         startDateTime: finalDateTime,
         duration: durationStr,
         isConfirmed: _isEditing ? widget.lesson!.isConfirmed : true,
-        summary: _summaryController.text.trim(),
+        summary: summaryText.isNotEmpty ? summaryText : null,
         description: _descriptionController.text.isNotEmpty
             ? _descriptionController.text.trim()
             : (_isEditing ? widget.lesson!.description : null),
@@ -322,15 +339,87 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                 onChanged: (val) => setState(() => _selectedContract = val),
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _summaryController,
-                decoration: const InputDecoration(
-                  labelText: 'Oggetto (es. Docenza Base)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.title),
-                ),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Campo obbligatorio' : null,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Autocomplete<String>(
+                    initialValue:
+                        TextEditingValue(text: _summaryController.text),
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      final query = textEditingValue.text.trim().toLowerCase();
+                      if (query.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return _uniqueSummaries.where((String option) {
+                        return option.toLowerCase().contains(query);
+                      });
+                    },
+                    onSelected: (String selection) {
+                      _summaryController.text = selection;
+                      if (_activeSummaryController != null) {
+                        _activeSummaryController!.text = selection;
+                      }
+                    },
+                    optionsViewBuilder: (
+                      BuildContext context,
+                      AutocompleteOnSelected<String> onSelected,
+                      Iterable<String> options,
+                    ) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          borderRadius: BorderRadius.circular(8),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight: 200,
+                              maxWidth: constraints.maxWidth,
+                            ),
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              shrinkWrap: true,
+                              itemCount: options.length,
+                              separatorBuilder: (_, _) => const Divider(
+                                height: 1,
+                                indent: 16,
+                                endIndent: 16,
+                              ),
+                              itemBuilder: (context, index) {
+                                final option = options.elementAt(index);
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(
+                                    Icons.history,
+                                    size: 20,
+                                  ),
+                                  title: Text(option),
+                                  onTap: () => onSelected(option),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    fieldViewBuilder: (
+                      BuildContext context,
+                      TextEditingController fieldTextEditingController,
+                      FocusNode fieldFocusNode,
+                      VoidCallback onFieldSubmitted,
+                    ) {
+                      _activeSummaryController = fieldTextEditingController;
+                      return TextFormField(
+                        controller: fieldTextEditingController,
+                        focusNode: fieldFocusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Oggetto (es. Docenza Base)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.title),
+                        ),
+                        onFieldSubmitted: (_) => onFieldSubmitted(),
+                      );
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
