@@ -333,11 +333,11 @@ class _ImportLessonsScreenState extends State<ImportLessonsScreen> {
               child: FloatingActionButton.extended(
                 onPressed: _isSaving ? null : _importSelected,
                 icon: _isSaving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           strokeWidth: 2,
                         ),
                       )

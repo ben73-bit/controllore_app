@@ -278,6 +278,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
   }
 
   Widget _buildForm(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ResponsiveLayout.constrainedWidth(
       SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -293,8 +294,10 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                   margin: const EdgeInsets.only(bottom: 16),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade300),
+                    color: colorScheme.errorContainer,
+                    border: Border.all(
+                      color: colorScheme.error.withValues(alpha: 0.3),
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -302,7 +305,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                     children: [
                       Icon(
                         Icons.error_outline,
-                        color: Colors.red.shade700,
+                        color: colorScheme.error,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -310,7 +313,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                         child: Text(
                           _lastError!,
                           style: TextStyle(
-                            color: Colors.red.shade800,
+                            color: colorScheme.onErrorContainer,
                             fontSize: 13,
                           ),
                         ),
@@ -483,7 +486,7 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                 child: FilledButton(
                   onPressed: _isSaving ? null : _saveLesson,
                   child: _isSaving
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? CircularProgressIndicator(color: colorScheme.onPrimary)
                       : Text(
                           _isEditing ? 'SALVA MODIFICHE' : 'REGISTRA LEZIONE',
                           style: const TextStyle(fontSize: 16),

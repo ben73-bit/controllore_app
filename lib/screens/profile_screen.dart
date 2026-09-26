@@ -192,19 +192,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      border: Border.all(color: Colors.green.shade300),
+                      color: Colors.green.withValues(alpha: 0.12),
+                      border: Border.all(
+                        color: Colors.green.withValues(alpha: 0.3),
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green.shade700),
+                        Icon(
+                          Icons.check_circle,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.green.shade400
+                              : Colors.green.shade700,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _successMessage!,
                             style: TextStyle(
-                              color: Colors.green.shade900,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.green.shade200
+                                  : Colors.green.shade900,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -220,19 +230,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      border: Border.all(color: Colors.red.shade300),
+                      color: colorScheme.errorContainer,
+                      border: Border.all(
+                        color: colorScheme.error.withValues(alpha: 0.3),
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade700),
+                        Icon(Icons.error_outline, color: colorScheme.error),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _errorMessage!,
                             style: TextStyle(
-                              color: Colors.red.shade900,
+                              color: colorScheme.onErrorContainer,
                               fontSize: 13,
                             ),
                           ),
@@ -312,12 +324,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: FilledButton.icon(
                     onPressed: _isLoading ? null : _saveProfile,
                     icon: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: colorScheme.onPrimary,
                             ),
                           )
                         : const Icon(Icons.save_outlined),

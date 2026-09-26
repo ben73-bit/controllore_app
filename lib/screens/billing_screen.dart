@@ -949,7 +949,9 @@ class _BillingScreenState extends State<BillingScreen>
                         selectedColor: Colors.green.withValues(alpha: 0.2),
                         labelStyle: TextStyle(
                           color: _billedPaymentFilter == 'PAID'
-                              ? Colors.green.shade800
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.green.shade300
+                                  : Colors.green.shade800)
                               : null,
                           fontWeight: _billedPaymentFilter == 'PAID'
                               ? FontWeight.bold
@@ -968,7 +970,9 @@ class _BillingScreenState extends State<BillingScreen>
                         selectedColor: Colors.amber.withValues(alpha: 0.2),
                         labelStyle: TextStyle(
                           color: _billedPaymentFilter == 'UNPAID'
-                              ? Colors.amber.shade900
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.amber.shade300
+                                  : Colors.amber.shade900)
                               : null,
                           fontWeight: _billedPaymentFilter == 'UNPAID'
                               ? FontWeight.bold
@@ -1212,6 +1216,7 @@ class _InvoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
@@ -1355,8 +1360,12 @@ class _InvoiceCard extends StatelessWidget {
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: isPaid
-                                ? Colors.green.shade100
-                                : Colors.amber.shade100,
+                                ? (isDark
+                                    ? Colors.green.withValues(alpha: 0.2)
+                                    : Colors.green.shade100)
+                                : (isDark
+                                    ? Colors.amber.withValues(alpha: 0.2)
+                                    : Colors.amber.shade100),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: isPaid
@@ -1371,8 +1380,12 @@ class _InvoiceCard extends StatelessWidget {
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               color: isPaid
-                                  ? Colors.green.shade800
-                                  : Colors.amber.shade900,
+                                  ? (isDark
+                                      ? Colors.green.shade300
+                                      : Colors.green.shade800)
+                                  : (isDark
+                                      ? Colors.amber.shade300
+                                      : Colors.amber.shade900),
                             ),
                           ),
                         ),
@@ -1467,8 +1480,12 @@ class _InvoiceCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
                                       color: isPaid
-                                          ? Colors.grey.shade400
-                                          : Colors.green.shade400,
+                                          ? (isDark
+                                              ? Colors.grey.shade600
+                                              : Colors.grey.shade400)
+                                          : (isDark
+                                              ? Colors.green.shade400
+                                              : Colors.green.shade600),
                                       width: 0.8,
                                     ),
                                   ),
@@ -1481,8 +1498,12 @@ class _InvoiceCard extends StatelessWidget {
                                             : Icons.task_alt_rounded,
                                         size: 15,
                                         color: isPaid
-                                            ? Colors.grey.shade700
-                                            : Colors.green.shade700,
+                                            ? (isDark
+                                                ? Colors.grey.shade300
+                                                : Colors.grey.shade700)
+                                            : (isDark
+                                                ? Colors.green.shade300
+                                                : Colors.green.shade700),
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -1493,8 +1514,12 @@ class _InvoiceCard extends StatelessWidget {
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                           color: isPaid
-                                              ? Colors.grey.shade800
-                                              : Colors.green.shade700,
+                                              ? (isDark
+                                                  ? Colors.grey.shade200
+                                                  : Colors.grey.shade800)
+                                              : (isDark
+                                                  ? Colors.green.shade300
+                                                  : Colors.green.shade700),
                                         ),
                                       ),
                                     ],
