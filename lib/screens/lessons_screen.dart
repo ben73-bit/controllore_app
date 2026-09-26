@@ -64,6 +64,25 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
   }
 
+  Future<void> _refreshData() async {
+    try {
+      final contracts = await _service.getContracts();
+      if (mounted) {
+        setState(() => _contracts = contracts);
+      }
+      await _applyFilters();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore durante l\'aggiornamento: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _applyFilters() async {
     final from = _selectedMonth != null
         ? DateTime(_selectedMonth!.year, _selectedMonth!.month, 1)
@@ -363,12 +382,15 @@ class _LessonsScreenState extends State<LessonsScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : _lessons.isEmpty
-                    ? _buildEmpty(colorScheme, textTheme)
                     : RefreshIndicator(
-                        onRefresh: _loadAll,
-                        child: _buildGroupedList(
-                            colorScheme, textTheme, currency),
+                        onRefresh: _refreshData,
+                        child: _lessons.isEmpty
+                            ? _buildEmpty(colorScheme, textTheme)
+                            : _buildGroupedList(
+                                colorScheme,
+                                textTheme,
+                                currency,
+                              ),
                       ),
               ),
             ],
@@ -567,6 +589,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
   ) {
     if (_selectedMonth != null) {
       return ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         itemCount: _lessons.length,
         separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -581,6 +604,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
     final keys = grouped.keys.toList();
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       itemCount: keys.length,
       itemBuilder: (_, sectionIndex) {
@@ -806,8 +830,19 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Widget _buildEmpty(ColorScheme colorScheme, TextTheme textTheme) {
-    return Center(
-      child: Text('Nessuna lezione trovata.', style: textTheme.bodyLarge),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child:
+                  Text('Nessuna lezione trovata.', style: textTheme.bodyLarge),
+            ),
+          ),
+        );
+      },
     );
   }
 }
