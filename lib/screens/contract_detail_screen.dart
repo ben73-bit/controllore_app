@@ -218,6 +218,8 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -423,12 +425,17 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${_totalHours.toStringAsFixed(1)} / $limitHours ore utilizzate',
-                  style: textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    '${_totalHours.toStringAsFixed(1)} / $limitHours ore utilizzate',
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '${(progress * 100).toInt()}%',
                   style: textTheme.bodySmall?.copyWith(
@@ -466,20 +473,28 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
       children: [
         Icon(icon, color: color, size: 22),
         const SizedBox(height: 6),
-        Text(
-          value,
-          style: textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            maxLines: 1,
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: textTheme.labelSmall?.copyWith(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.5),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: textTheme.labelSmall?.copyWith(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            maxLines: 1,
           ),
         ),
       ],
@@ -578,10 +593,14 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                         color: colorScheme.onSurface.withValues(alpha: 0.4),
                       ),
                       const SizedBox(width: 3),
-                      Text(
-                        '${timeFormat.format(lesson.startDateTime)} · $durationLabel',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.55),
+                      Expanded(
+                        child: Text(
+                          '${timeFormat.format(lesson.startDateTime)} · $durationLabel',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.55),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -590,7 +609,8 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
               ),
             ),
             // Importo
-            if (lesson.amount != null)
+            if (lesson.amount != null) ...[
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -621,6 +641,7 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                     ),
                 ],
               ),
+            ],
           ],
         ),
       ), // chiude Container

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:supabase/supabase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:controllore_app/models/contract.dart';
 import 'package:controllore_app/models/lesson.dart';
 

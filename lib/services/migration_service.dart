@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -23,17 +22,10 @@ class MigrationService {
 
   /// Apre il file picker per selezionare il file JSON di esportazione desktop.
   Future<PlatformFile?> pickJsonFile() async {
-    final result = await FilePicker.pickFiles(
+    return await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['json'],
-      withData: true,
     );
-
-    if (result == null || result.files.isEmpty) {
-      return null;
-    }
-
-    return result.files.first;
   }
 
   /// Apre il file picker ed esegue l'importazione.
@@ -41,15 +33,8 @@ class MigrationService {
     final platformFile = await pickJsonFile();
     if (platformFile == null) return null;
 
-    String jsonString;
-    if (platformFile.bytes != null) {
-      jsonString = utf8.decode(platformFile.bytes!);
-    } else if (platformFile.path != null) {
-      final file = File(platformFile.path!);
-      jsonString = await file.readAsString();
-    } else {
-      throw Exception('Impossibile leggere i dati dal file selezionato.');
-    }
+    final bytes = await platformFile.readAsBytes();
+    final jsonString = utf8.decode(bytes);
 
     return await importFromJsonString(
       jsonString: jsonString,

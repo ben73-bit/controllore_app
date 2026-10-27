@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
@@ -335,7 +335,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
               title: const Text('Le Mie Lezioni'),
               actions: [
                 if (_selectedContract != null || _selectedMonth != null)
-                  TextButton.icon(
+                  IconButton(
                     onPressed: () {
                       setState(() {
                         _selectedContract = null;
@@ -343,8 +343,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
                       });
                       _applyFilters();
                     },
-                    icon: const Icon(Icons.filter_alt_off, size: 18),
-                    label: const Text('Reset'),
+                    icon: const Icon(Icons.filter_alt_off),
+                    tooltip: 'Resetta filtri',
                   ),
                 if (_lessons.isNotEmpty)
                   IconButton(
@@ -561,11 +561,14 @@ class _LessonsScreenState extends State<LessonsScreen> {
             style: textTheme.labelMedium,
           ),
           const Spacer(),
-          Text(
-            currency.format(_filteredAmount),
-            style: textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.green.shade700,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              currency.format(_filteredAmount),
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
             ),
           ),
         ],
@@ -731,10 +734,13 @@ class _LessonsScreenState extends State<LessonsScreen> {
                     lesson.summary ?? 'Lezione',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                     maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     '${timeFormat.format(lesson.startDateTime)} · ${lesson.duration}',
                     style: textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (_selectedContract == null && contract.companyName != '—')
                     Padding(
@@ -751,14 +757,19 @@ class _LessonsScreenState extends State<LessonsScreen> {
                 ],
               ),
             ),
-            if (lesson.amount != null)
-              Text(
-                currency.format(lesson.amount),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
+            if (lesson.amount != null) ...[
+              const SizedBox(width: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  currency.format(lesson.amount),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -813,9 +824,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Future<void> _pickAndImportIcs() async {
-    final result = await FilePicker.pickFiles(type: FileType.any);
-    if (result != null && result.files.single.path != null) {
-      final content = await File(result.files.single.path!).readAsString();
+    final file = await FilePicker.pickFile(type: FileType.any);
+    if (file != null) {
+      final bytes = await file.readAsBytes();
+      final content = utf8.decode(bytes);
       final parsed = IcsParser.parse(content);
       if (mounted) {
         final imported = await Navigator.push(

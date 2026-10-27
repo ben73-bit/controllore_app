@@ -464,17 +464,27 @@ class _AddLessonScreenState extends State<AddLessonScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _selectDate,
                       icon: const Icon(Icons.calendar_today),
-                      label: Text(
-                        '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                          maxLines: 1,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _selectTime,
                       icon: const Icon(Icons.access_time),
-                      label: Text(_startTime.format(context)),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _startTime.format(context),
+                          maxLines: 1,
+                        ),
+                      ),
                     ),
                   ),
                 ],

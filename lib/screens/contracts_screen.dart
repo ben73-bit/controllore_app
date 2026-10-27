@@ -129,7 +129,7 @@ class _ContractsScreenState extends State<ContractsScreen> {
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 580,
-                          mainAxisExtent: 220,
+                          mainAxisExtent: 245,
                           crossAxisSpacing: 20,
                           mainAxisSpacing: 20,
                         ),
@@ -331,21 +331,25 @@ class _ContractsScreenState extends State<ContractsScreen> {
 
           // Dettagli Tariffe e Date
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDetailItem(
-                Icons.payments_outlined,
-                'Tariffa',
-                '${formatCurrency.format(contract.hourlyRate)}/h',
-                textTheme,
-                colorScheme,
+              Expanded(
+                child: _buildDetailItem(
+                  Icons.payments_outlined,
+                  'Tariffa',
+                  '${formatCurrency.format(contract.hourlyRate)}/h',
+                  textTheme,
+                  colorScheme,
+                ),
               ),
-              _buildDetailItem(
-                Icons.calendar_today_outlined,
-                'Inizio',
-                formatDate.format(contract.startDate),
-                textTheme,
-                colorScheme,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildDetailItem(
+                  Icons.calendar_today_outlined,
+                  'Inizio',
+                  formatDate.format(contract.startDate),
+                  textTheme,
+                  colorScheme,
+                ),
               ),
             ],
           ),
@@ -369,12 +373,17 @@ class _ContractsScreenState extends State<ContractsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Ore Fatturate: $billedStr / $limitStr h',
-                        style: textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          'Ore Fatturate: $billedStr / $limitStr h',
+                          style: textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '$percent%',
                         style: textTheme.bodySmall?.copyWith(
@@ -435,23 +444,33 @@ class _ContractsScreenState extends State<ContractsScreen> {
           ),
           child: Icon(icon, size: 20, color: colorScheme.secondary),
         ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Text(
-              value,
-              style: textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

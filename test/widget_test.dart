@@ -5,26 +5,26 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:controllore_app/main.dart';
+import 'package:controllore_app/utils/ics_parser.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ControllOreApp());
+  test('IcsParser parses basic VEVENT correctly', () {
+    const icsContent = '''BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ControllOre//IT
+BEGIN:VEVENT
+UID:test-123@example.com
+DTSTART:20261025T090000Z
+DTEND:20261025T110000Z
+SUMMARY:Lezione di Matematica
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR''';
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final lessons = IcsParser.parse(icsContent);
+    expect(lessons.length, 1);
+    expect(lessons.first.summary, 'Lezione di Matematica');
+    expect(lessons.first.duration, '02:00');
   });
 }

@@ -276,9 +276,10 @@ class _BillingScreenState extends State<BillingScreen>
           title: const Text('Crea Fattura'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: ResponsiveLayout.kMaxFormWidth),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 Text(
                   '${_selected.length} lezioni selezionate',
                   style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
@@ -313,6 +314,7 @@ class _BillingScreenState extends State<BillingScreen>
               ],
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -415,28 +417,31 @@ class _BillingScreenState extends State<BillingScreen>
           controller: _tabController,
           tabs: [
             Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.hourglass_empty, size: 18),
-                  const SizedBox(width: 6),
-                  const Text('Da Fatturare'),
-                  if (_unbilled.isNotEmpty) ...[
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.hourglass_empty, size: 18),
                     const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade600,
-                        borderRadius: BorderRadius.circular(10),
+                    const Text('Da Fatturare'),
+                    if (_unbilled.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade600,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_unbilled.length}',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      child: Text(
-                        '${_unbilled.length}',
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             const Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Fatture'),
@@ -653,23 +658,31 @@ class _BillingScreenState extends State<BillingScreen>
                         });
                       },
               ),
-              Text(
-                allSelected
-                    ? 'Deseleziona tutto'
-                    : '${_selected.where((id) => filteredList.any((l) => l.id == id)).length} di ${filteredList.length} selezionate',
-                style: textTheme.bodyMedium,
+              Expanded(
+                child: Text(
+                  allSelected
+                      ? 'Deseleziona tutto'
+                      : '${_selected.where((id) => filteredList.any((l) => l.id == id)).length} di ${filteredList.length} selezionate',
+                  style: textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
-              if (_selected.isNotEmpty)
-                Text(
-                  currency.format(filteredList
-                      .where((l) => _selected.contains(l.id))
-                      .fold(0.0, (s, l) => s + (l.amount ?? 0))),
-                  style: textTheme.titleSmall?.copyWith(
-                    color: Colors.green.shade600,
-                    fontWeight: FontWeight.bold,
+              if (_selected.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    currency.format(filteredList
+                        .where((l) => _selected.contains(l.id))
+                        .fold(0.0, (s, l) => s + (l.amount ?? 0))),
+                    style: textTheme.titleSmall?.copyWith(
+                      color: Colors.green.shade600,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -1064,11 +1077,14 @@ class _BillingScreenState extends State<BillingScreen>
                 style: textTheme.labelMedium,
               ),
               const Spacer(),
-              Text(
-                currency.format(totalBilledAmount),
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  currency.format(totalBilledAmount),
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
                 ),
               ),
             ],
@@ -1425,7 +1441,11 @@ class _InvoiceCard extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
-                          child: Row(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               // ── Copia per Fatturazione ──
                               InkWell(
@@ -1463,8 +1483,6 @@ class _InvoiceCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
-
-                              const Spacer(),
 
                               // ── Stato pagamento ──
                               InkWell(
@@ -1595,6 +1613,8 @@ class _InvoiceCard extends StatelessWidget {
                                             .withValues(alpha: 0.75),
                                         fontWeight: FontWeight.w500,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 3),
                                     Row(
@@ -1606,12 +1626,16 @@ class _InvoiceCard extends StatelessWidget {
                                               .withValues(alpha: 0.5),
                                         ),
                                         const SizedBox(width: 4),
-                                        Text(
-                                          '${lessonHours(lesson).toStringAsFixed(1)} h (${lesson.duration})',
-                                          style: textTheme.bodySmall?.copyWith(
-                                            color: colorScheme.onSurface
-                                                .withValues(alpha: 0.6),
-                                            fontWeight: FontWeight.w500,
+                                        Expanded(
+                                          child: Text(
+                                            '${lessonHours(lesson).toStringAsFixed(1)} h (${lesson.duration})',
+                                            style: textTheme.bodySmall?.copyWith(
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.6),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],

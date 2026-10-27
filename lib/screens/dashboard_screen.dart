@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/supabase_service.dart';
@@ -197,16 +196,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       );
-
-      String jsonString;
-      if (platformFile.bytes != null) {
-        jsonString = utf8.decode(platformFile.bytes!);
-      } else if (platformFile.path != null) {
-        final f = File(platformFile.path!);
-        jsonString = await f.readAsString();
-      } else {
-        throw Exception('Impossibile leggere il file selezionato.');
-      }
+      final bytes = await platformFile.readAsBytes();
+      final jsonString = utf8.decode(bytes);
 
       final result = await _migrationService.importFromJsonString(
         jsonString: jsonString,
@@ -1066,29 +1057,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ? colorScheme.onSurface
                       : colorScheme.onSurface.withValues(alpha: 0.2),
                 ),
-                GestureDetector(
-                  onTap: !isCurrentMonth && _isFiltered
-                      ? _goToCurrentMonth
-                      : null,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      _isFiltered
-                          ? DateFormat(
-                              'MMMM yyyy',
-                              'it_IT',
-                            ).format(_selectedMonth!)
-                          : 'Storico completo',
-                      key: ValueKey(
-                        _isFiltered ? _selectedMonth.toString() : 'all',
+                Expanded(
+                  child: GestureDetector(
+                    onTap: !isCurrentMonth && _isFiltered
+                        ? _goToCurrentMonth
+                        : null,
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Text(
+                            _isFiltered
+                                ? DateFormat(
+                                    'MMMM yyyy',
+                                    'it_IT',
+                                  ).format(_selectedMonth!)
+                                : 'Storico completo',
+                            key: ValueKey(
+                              _isFiltered ? _selectedMonth.toString() : 'all',
+                            ),
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: _isFiltered
+                                  ? colorScheme.onSurface
+                                  : colorScheme.onSurface.withValues(alpha: 0.4),
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: _isFiltered
-                            ? colorScheme.onSurface
-                            : colorScheme.onSurface.withValues(alpha: 0.4),
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -1266,18 +1266,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                if (lesson.amount != null)
-                  Text(
-                    '€ ${lesson.amount!.toStringAsFixed(2)}',
-                    style: textTheme.titleMedium?.copyWith(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
+                if (lesson.amount != null) ...[
+                  const SizedBox(width: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '€ ${lesson.amount!.toStringAsFixed(2)}',
+                      style: textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
+                ],
               ],
             ),
           ), // chiude Container
@@ -1336,12 +1343,17 @@ class _SummaryCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: textTheme.displayMedium?.copyWith(
-              fontSize: 26,
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: textTheme.displayMedium?.copyWith(
+                fontSize: 26,
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
             ),
           ),
         ],

@@ -194,12 +194,16 @@ class _ImportLessonsScreenState extends State<ImportLessonsScreen> {
                   padding: const EdgeInsets.all(16),
                   color: colorScheme.surface,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${_selectedIndices.length} di ${widget.parsedLessons.length} selezionate',
-                        style: textTheme.titleMedium,
+                      Expanded(
+                        child: Text(
+                          '${_selectedIndices.length} di ${widget.parsedLessons.length} selezionate',
+                          style: textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       OutlinedButton.icon(
                         onPressed: _selectedIndices.isEmpty
                             ? null

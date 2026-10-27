@@ -225,18 +225,29 @@ class _AddContractScreenState extends State<AddContractScreen> {
                             child: OutlinedButton.icon(
                               onPressed: () => _selectDate(context, true),
                               icon: const Icon(Icons.calendar_today, size: 18),
-                              label: Text(
-                                  'Inizio: ${dateFormat.format(_startDate)}'),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'Inizio: ${dateFormat.format(_startDate)}',
+                                  maxLines: 1,
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () => _selectDate(context, false),
                               icon: const Icon(Icons.event, size: 18),
-                              label: Text(_endDate == null
-                                  ? 'Nessuna fine'
-                                  : 'Fine: ${dateFormat.format(_endDate!)}'),
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  _endDate == null
+                                      ? 'Nessuna fine'
+                                      : 'Fine: ${dateFormat.format(_endDate!)}',
+                                  maxLines: 1,
+                                ),
+                              ),
                             ),
                           ),
                           if (_endDate != null)
